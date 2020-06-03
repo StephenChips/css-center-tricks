@@ -1,0 +1,46 @@
+.codepane {
+    display: block;
+}
+
+.codepane__example {
+    display: none;
+    height: 100%;
+}
+
+.codepane__example.actived {
+    display: block;
+}
+
+.codepane__example .codepane__code,
+.codepane__example .codepane__result {
+    display: none;
+    height: 100%;
+}
+
+.codepane__example .codepane__result.actived {
+    display: block;
+}
+
+.codepane__example .codepane__code.actived {
+    display: flex;
+}
+
+.codepane__example .codepane__html,
+.codepane__example .codepane__css {
+    overflow: auto;
+    height: 100%;
+}
+
+.codepane__example pre,
+.codepane__example code {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: 'Fira Mono', 'Consolas', 'Courier New', Courier, monospace;
+}
+
+.codepane__example  .gutter.gutter-horizontal {
+    cursor: ew-resize;
+    border-left: dashed 1px lightgray;
+    border-right: dashed 1px lightgray;
+}

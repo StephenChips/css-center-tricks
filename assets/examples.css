@@ -1,0 +1,39 @@
+/* horizontal center by flexbox */
+.codepane__example[data-key='hc-flexbox'] .container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+/* Horizontal center by setting horizontal margins to "auto". */
+.codepane__example[data-key="hc-auto-margin"] .centered {
+    display: block; /* Presquisite #1: must be a block-level element */
+    width: 300px;   /* Presquisite #2: must have a fixed width. */
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* horizontal center by setting text-align: center */
+.codepane__example[data-key="hc-text-align"] .container {
+    text-align: center;
+}
+
+.codepane__example[data-key="hc-text-align"] .centered {
+    display: inline-block;
+}
+
+/* Horizontal center by setting absoluted position */
+.codepane__example[data-key="hc-position-absolute"] .container {
+    display: relative;
+}
+
+.codepane__example[data-key="hc-position-absolute"] .centered {
+    left: 0;
+    right: 0;
+    top: 0;
+
+    margin-left: auto;
+    margin-right: auto;
+
+    width: 300px; /* This method can only create fixed-width horizontal centered element */
+}
