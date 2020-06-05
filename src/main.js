@@ -30,21 +30,6 @@ const $codePane = new CodePane(document.getElementById('codepane'));
 
 var navMenuData = {
     'horizontal': [
-        { key: 'hc-auto-margin', data: 'auto margin' },
-        { key: 'hc-position-absolute', data: 'absolute position' },
-        { key: 'hc-text-align', data: 'text align' },
-        { key: 'hc-flexbox', data: 'flexbox' }
-    ],
-    'vertical': [
-        { key: 'absolute-poistion', data: 'absolute position' },
-        { key: 'table-trick', data: 'table trick' },
-        { key: 'inline-trick', data: 'inline-trick' },
-        { key: 'flexbox', data: 'flexbox' }
-    ],
-    'horizontal-vertical': [
-        { key: 'absolute-poistion', data: 'absolute position' },
-        { key: 'table-trick', data: 'table trick' },
-        { key: 'inline-trick', data: 'inline-trick' },
         { key: 'flexbox', data: 'flexbox' }
     ]
 };
@@ -71,8 +56,23 @@ $btnShowResult.addEventListener('click', () => {
 //     }
 // });
 
+$codePane.addExample('flexbox', {
+    html: `
+        <div class="flexbox">
+            <div class="flexbox-inner">hello, world</div>
+        </div>
+    `,
+    css: {
+        '.flexbox': {
+            'display': 'flex'
+        },
+        '.flexbox-inner': {
+            'flex-basis': '200px',
+        }
+    }
+});
+
 $navmenu.setItems(navMenuData['horizontal']);
 $navmenu.on('active', (event) => {
-    console.log(event)
     $codePane.showExample(event.key);
 });

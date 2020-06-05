@@ -1,7 +1,9 @@
 import '../assets/CodePane.css';
 import split from 'split.js';
 import hljs from 'highlight.js';
-import prettier, { doc } from 'prettier';
+import prettier from 'prettier/standalone.js';
+import PrettierHTMLParser from 'prettier/parser-html.js';
+import PrettierCSSParser from 'prettier/parser-postcss.js';
 import escapeHTML from 'escape-html';
 
 class CodePane {
@@ -16,8 +18,11 @@ class CodePane {
         if (this._el.children.length > 0) {
             let firstChild = this._el.children[0];
             let key = firstChild.dataset.key;
-            this._initSplitViews();
-            this._initCodeHighlight();
+
+            // Initialize split.js for all examples.
+            this._initSplitViewForAllExamples();
+            // Initialize highlight.js for all examples.
+            this._initHighlightForAllExamples();
             this.showExample(key);
         }
     }
@@ -69,38 +74,49 @@ class CodePane {
      * @param {{ html: string, css: object }}} param1 object specifies example's style
      */
     addExample (key, { html, css }) {
-        const el = this._createExample(key, html, css);
+        if (this._findExampleByKey(key) !== null) {
+            throw new Error('Your example\'s key is same with an existed example.');
+        }
 
+        // create html elements and CSS from argument.
+        const el = this._createElement(key, html, css);
         const scopedCSSObject = this._createScopedCSSObject(key, css);
         const strCSS = this._convertCSSObjectToString(scopedCSSObject);
-        console.log(strCSS);
 
+        // Create <style> tag with generated CSS.
         const styleTag = document.createElement('style');
-        styleTag.innerText = strCSS;
+        styleTag.textContent = strCSS;
 
+        // Insert example's element to document.
         this._el.appendChild(el);
         document.head.appendChild(styleTag);
+
+        // Finally, initalize split.js for this new example.
+        this._initSplitViewForExample(el);
+        this._initHighlightForExample(el);
     }
 
-    _createExample (key, html, css) {
+    _createElement (key, html, css) {
         const formattedHTML = escapeHTML(prettier.format(html, {
             parser: 'html',
-            tabWidth: 4
+            tabWidth: 4,
+            plugins: [ PrettierHTMLParser ]
         }));
 
         const formattedCSS = prettier.format(this._convertCSSObjectToString(css), {
             parser: 'css',
-            tabWidth: 4
+            tabWidth: 4,
+            plugins: [ PrettierCSSParser ]
         });
 
         return this._parseHTML(`
             <div class="codepane__example" data-key="${key}">
                 <div class="codepane__code">
                     <div class="codepane__html">
-                        <pre><code>${formattedHTML.trimRight() /* There  is a line break at the end of the string. */}</code></pre>
+                        <pre><code>${formattedHTML.trim()}</code></pre>
                     </div>
                     <div class="codepane__css">
-                        <pre><code>${formattedCSS.trimRight() /* There is a line break at the end of the string. */}</code></pre>
+                        <pre><code>${formattedCSS.trim()}</code></pre>
                     </div>
                 </div>
                 <div class="codepane__result">
@@ -150,37 +166,51 @@ class CodePane {
         return this._el.querySelector(`.codepane__example[data-key="${key}"]`);
     }
 
-    _initSplitViews () {
-        var codeViews = this._el.querySelectorAll('.codepane__example > .codepane__code');
+    _initSplitViewForExample (example) {
+        let htmlView = example.querySelector('.codepane__code .codepane__html');
+        let cssView = example.querySelector('.codepane__code .codepane__css');
 
-        for (var view of codeViews) {
-            var htmlView = view.querySelector('.codepane__html');
-            var cssView = view.querySelector('.codepane__css');
-
-            if (htmlView !== null && cssView !== null) {
-                split([ htmlView, cssView ], {
-                    gutterSize: 5,
-                    elementStyle (dimension, size, gutterSize) {
-                        return {
-                            'flex-basis': 'calc(' + size + '% - ' + gutterSize + 'px)',
-                        }
-                    },
-                    gutterStyle (dimension, gutterSize) {
-                        return {
-                            'flex-basis': gutterSize + 'px',
-                        }
-                    },
-                });
-            }
+        if (htmlView !== null && cssView !== null) {
+            split([ htmlView, cssView ], {
+                gutterSize: 5,
+                elementStyle (dimension, size, gutterSize) {
+                    return {
+                        'flex-basis': 'calc(' + size + '% - ' + gutterSize + 'px)',
+                    }
+                },
+                gutterStyle (dimension, gutterSize) {
+                    return {
+                        'flex-basis': gutterSize + 'px',
+                    }
+                },
+            });
         }
     }
 
-    _initCodeHighlight () {
-        var codes = this._el.querySelectorAll('pre code');
-
-        for (var el of codes) {
-            hljs.highlightBlock(el);
+    _initSplitViewForAllExamples () {
+        let allExamples = this._el.querySelectorAll('.codepane__example');
+        for (let example of allExamples) {
+            this._initSplitViewForExample(example);
         }
+    }
+
+    _initHighlightForAllExamples () {
+        const allExamples = this._el.querySelectorAll('.codepane__example');
+
+        for (let example of allExamples) {
+            this._initHighlightForExample(example);
+        }
+    }
+
+    _initHighlightForExample (example) {
+        const htmlSnippet = example.querySelector('.codepane__html');
+        const cssSnippet = example.querySelector('.codepane__css');
+        hljs.highlightBlock(htmlSnippet);
+        hljs.highlightBlock(cssSnippet);
+    }
+
+    get el () {
+        return this._el;
     }
 }
 

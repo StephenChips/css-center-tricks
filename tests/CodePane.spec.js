@@ -24,6 +24,12 @@ function initElement (template) {
     return document.getElementById('codepane');
 }
 
+function createCodePane (template) {
+    document.body.innerHTML = template;
+    let el = document.getElementById('codepane');
+    return new CodePane(el);
+}
+
 describe('CodePane', () => {
     let el;
     let codepane;
@@ -75,19 +81,40 @@ describe('CodePane', () => {
             expect(secondResult.classList.contains('actived')).toBe(false)
         });
     });
-    describe('Test adding example', () => {
-        beforeEach(() => {
-            el = initElement(CODEPANE_WITH_NO_EXAMPLES);
-            codepane = new CodePane(el);
+
+    describe('Test addExample(...)', () => {
+        let sampleHTML = `
+            <div class="flexbox">
+                <div class="flexbox-inner">hello, world</div>
+            </div>
+        `;
+
+        it('The new example will not become actived after we call "addExample(...)".', async () => {
+            let codepane = createCodePane(CODEPANE_WITH_NO_EXAMPLES);
+            codepane.addExample('flexbox', {
+                html: sampleHTML,
+                css: {
+                    '.flexbox': {
+                        'display': 'flex'
+                    }
+                },
+            });
+
+            await tick();
+
+            // Since there aren't any examples before, certainly there aren't any actived example before we call "addExample(...)".
+            // And since `codePane` won't automatically make an example actived, no example should be actived after the call.
+            expect(document.querySelector('.codepane__example.actived')).toBeNull();
+
+            // You have to call "showExample(...)" manually to make the new example actived.
+            codepane.showExample('flexbox');
+            expect(document.querySelector('.codepane__example.actived')).not.toBeNull();
         });
 
-        it('Can add example', async () => {
+        it('will create and add example to the DOM', () => {
+            let codepane = createCodePane(CODEPANE_WITH_NO_EXAMPLES);
             codepane.addExample('flexbox', {
-                html: `
-                    <div class="flexbox">
-                        <div class="flexbox-inner">hello, world</div>
-                    </div>
-                `,
+                html: sampleHTML,
                 css: {
                     '.flexbox': {
                         'display': 'flex'
@@ -97,56 +124,93 @@ describe('CodePane', () => {
                     }
                 }
             });
-    
-            await tick();
-    
-            codepane.showExample('flexbox');
 
             const elExample = document.querySelector('.codepane__example[data-key="flexbox"]');
             expect(elExample).not.toBeNull();
+        });
 
-            const elResult = elExample.querySelector('.codepane__result'); 
-            const elStyle = elExample.querySelector('.codepane__code .codepane__css code');
-            const elHTML = elExample.querySelector('.codepane__code .codepane__html code');
+        it('will apply correct style to the result HTML according to the given CSS object.', () => {
+            let codepane = createCodePane(CODEPANE_WITH_NO_EXAMPLES);
+            codepane.addExample('flexbox', {
+                // This is the HTML that will be rendered when we call "codePane.showResult()"
+                // also, a character-escaped version will be created and will be displayed when we call "codePane.showCode()"
+                html: sampleHTML,
 
-            codepane.showCode();
-            await tick();
-
-            expect(elStyle.textContent).toBe(
-`.flexbox {
-    display: flex;
-}
-.flexbox-inner {
-    flex-basis: 200px;
-}`
-            );
-
-            expect(elHTML.textContent).toBe(
-`<div class="flexbox">
-    <div class="flexbox-inner">hello, world</div>
-</div>`
-            );
-
-            const formattedResult = prettier.format(elResult.innerHTML, {
-                tabWidth: 4,
-                parser: 'html'
+                // This is a CSS object, which will be converted to real CSS and appied to the result HTML.
+                css: {
+                    // Each key of the parent object is a selector
+                    '.flexbox': {
+                        // And the child object specified acutal style rules for the element that is going to bew chosen by the selector.
+                        'display': 'flex'
+                    },
+                    '.flexbox-inner': {
+                        'flex-basis': '200px',
+                    }
+                }
             });
 
-            expect(formattedResult).toBe(
-`<div class="flexbox">
-    <div class="flexbox-inner">hello, world</div>
-</div>
-`
-            );
+            const elExample = document.querySelector('.codepane__example[data-key="flexbox"]');
+            const elFlexbox = elExample.querySelector('.codepane__result .flexbox');
+            const elFlexboxInner = elExample.querySelector('.codepane__result .flexbox-inner');
 
-            codepane.showResult();
-            await tick();
-
-            const elFlexbox = elResult.querySelector('.flexbox');
-            const elFlexboxInner = elResult.querySelector('.flexbox-inner');
-
-            expect(getComputedStyle(elFlexbox).flex).toBe('flex');
+            expect(getComputedStyle(elFlexbox).display).toBe('flex');
             expect(getComputedStyle(elFlexboxInner).flexBasis).toBe('200px');
         });
+
+        it('cannot add two example with same key', async () => {
+            expect(async () => {
+                codePane.addExample(sampleHTML, { '.flexbox': { 'display': 'flex' } });
+                await tick();
+                codePane.addExample(sampleHTML, { '.flexbox': { 'display': 'flex' } });
+                await tick();
+            }).rejects.toThrow();
+        });
+
+        it('render result correctly when we call "showResult()"', () => {
+            let codePane = createCodePane(CODEPANE_WITH_NO_EXAMPLES);
+            codePane.addExample('flexbox', {
+                html: sampleHTML,
+                css: {
+                    '.flexbox': {
+                        'display': 'flex'
+                    },
+                    '.flexbox-inner': {
+                        'flex-basis': '200px'
+                    }
+                }
+            });
+
+            codePane.showExample('flexbox');
+            codePane.showResult();
+
+            expect(codePane.el).toMatchSnapshot();
+        });
+
+        it('render HTML & CSS snippets correctly when we call "showCode()"', () => {
+            let codePane = createCodePane(CODEPANE_WITH_NO_EXAMPLES);
+            codePane.addExample('flexbox', {
+                html: sampleHTML,
+                css: {
+                    '.flexbox': {
+                        'display': 'flex'
+                    },
+                    '.flexbox-inner': {
+                        'flex-basis': '200px'
+                    }
+                }
+            });
+
+            codePane.showExample('flexbox');
+            codePane.showCode();
+
+            expect(codePane.el).toMatchSnapshot();
+        });
+
+        console.warn(
+            "[Notice CodePane.spec.js] Still, you are responsible to test following visual effects \n" +
+            "   1. CodePane should show split view correctly, \n" +
+            "   2. CodePane should highlight the code (both CSS and HTML snippets) correctly. \n" +
+            "   3. CodePane should should the result HTML correctly.\n"
+        );
     });
 });
