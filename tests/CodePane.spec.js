@@ -1,8 +1,35 @@
 import CodePane from '../src/CodePane';
 import { tick } from './test-utils';
-import prettier from 'prettier';
 
 jest.mock('highlight.js');
+
+/**
+ * There are three aspect for testing a component:
+ * 1. Behaviour
+ * 2. Element structure
+ * 3. Style
+ * 
+ * For testing component's behaviour, you can alter initialize your component, control the input and check for output.
+ * Input is things will make the component changed, and an output. is a things that is effected by the component's change. 
+ * 
+ * Common inputs include:
+ *    1. calling component's method.
+ *    2. setting component's property/data.
+ *    3. triggering a DOM event
+ * 
+ * Common outputs include:
+ *    1. DOM structure's change
+ *    2. component's property/data's change
+ *    3. recieving a event and calling the callback.
+ * 
+ * Inputs and output may be various, many of them are actually the same, but are treated differently. 
+ * You should analyze and find them out before writing a test.
+ * 
+ * 2. For testing component's element structure, you can use Jest's snapshot testing. you can set to component to a certain state first, then take a snapshot.
+ * 
+ * 3. For testing component's style,  you can do the similiar thing as testing behaviour.
+ *    You can observe the style changes by calling getComputedStyle(...) method.
+ */
 
 const CODEPANE_WITH_TWO_EXAMPLES = `
 <div id="codepane" class="codepane">
@@ -19,50 +46,56 @@ const CODEPANE_WITH_TWO_EXAMPLES = `
 
 const CODEPANE_WITH_NO_EXAMPLES = `<div id="codepane" class="codepane"></div>`;
 
-function initElement (template) {
-    document.body.innerHTML = template;
-    return document.getElementById('codepane');
-}
-
-function createCodePane (template) {
-    document.body.innerHTML = template;
-    let el = document.getElementById('codepane');
-    return new CodePane(el);
-}
-
 describe('CodePane', () => {
     let el;
     let codepane;
 
-    describe('Test switching examples, codes and results.', () => {
+    function createCodePane (template) {
+        document.body.innerHTML = template;
+        el = document.getElementById('codepane');
+        return new CodePane(el);
+    }
+
+    describe('Test initialization, showExample, showCode and showResult', () => {
         let firstExample, secondExample;
         let firstCode, firstResult;
         let secondCode, secondResult;
 
-        beforeEach(() => {
-            el = initElement(CODEPANE_WITH_TWO_EXAMPLES);
+        function setupElements () {
             firstExample = el.children[0];
             secondExample = el.children[1];
             firstCode = firstExample.querySelector('.codepane__code');
-            firstResult = firstExample.querySelectorAll('.codepane__result');
+            firstResult = firstExample.querySelector('.codepane__result');
             secondCode = secondExample.querySelector('.codepane__code');
             secondResult = secondExample.querySelector('.codepane__result');
-            codepane = new CodePane(el);
-        });
+        }
 
-        it('initialize', () => {
+        it('will shows the first example by default', () => {
+            codepane = createCodePane(CODEPANE_WITH_TWO_EXAMPLES);
+
+            setupElements();
+
             expect(firstExample.classList.contains('actived')).toBe(true);
             expect(secondExample.classList.contains('actived')).toBe(false);
         });
     
-        it('shows the first example again after creation', () => {
+        it('re-show the same example won\'t make any changes', () => {
+            codepane = createCodePane(CODEPANE_WITH_TWO_EXAMPLES);
+
+            setupElements();
+
             codepane.showExample('A');
             expect(firstExample.classList.contains('actived')).toBe(true);
             expect(secondExample.classList.contains('actived')).toBe(false)
         });
     
-        it('switch to another example after codepane is created', () => {
+        it('showExample(\'B\')', () => {
+            codepane = createCodePane(CODEPANE_WITH_TWO_EXAMPLES);
+
             codepane.showExample('B');
+
+            setupElements();
+    
             expect(firstExample.classList.contains('actived')).toBe(false);
             expect(secondExample.classList.contains('actived')).toBe(true);
             expect(secondCode.classList.contains('actived')).toBe(true);
@@ -71,14 +104,34 @@ describe('CodePane', () => {
     
         it('throws errors if the example to show does not exists.', () => {
             expect(() => {
+                codepane = createCodePane(CODEPANE_WITH_TWO_EXAMPLES);
                 codepane.showExample('C');
             }).toThrow('The pane does not exists');
         });
     
         it('new CodePane(el) -> showResult()', () => {
+            codepane = createCodePane(CODEPANE_WITH_TWO_EXAMPLES);
             codepane.showResult();
+
+            setupElements();
+
             expect(secondCode.classList.contains('actived')).toBe(false);
             expect(secondResult.classList.contains('actived')).toBe(false)
+        });
+
+        // If the code's behaviour doesn't meet the requirement,
+        // Even all paths are covered, there are still bugs.
+        it('If a CodePane is displaying the result HTML, when we switch to another example, it will display that example\'s result HTML.', async () => {
+            codepane = createCodePane(CODEPANE_WITH_TWO_EXAMPLES);
+            codepane.showExample('B');
+            codepane.showResult();
+            await tick();
+            codepane.showExample('A');
+
+            setupElements();
+
+            expect(firstResult.classList.contains('actived')).toBe(true);
+            expect(firstCode.classList.contains('actived')).toBe(false);
         });
     });
 
@@ -111,7 +164,7 @@ describe('CodePane', () => {
             expect(document.querySelector('.codepane__example.actived')).not.toBeNull();
         });
 
-        it('will create and add example to the DOM', () => {
+        it('will create example\'s element with a correct key and append it to the document.', () => {
             let codepane = createCodePane(CODEPANE_WITH_NO_EXAMPLES);
             codepane.addExample('flexbox', {
                 html: sampleHTML,
@@ -127,6 +180,26 @@ describe('CodePane', () => {
 
             const elExample = document.querySelector('.codepane__example[data-key="flexbox"]');
             expect(elExample).not.toBeNull();
+        });
+
+        it('the new example shows its code after creation (in its \'showing-code\' state)', () => {
+            let codepane = createCodePane(CODEPANE_WITH_NO_EXAMPLES);
+            codepane.addExample('flexbox', {
+                html: sampleHTML,
+                css: {
+                    '.flexbox': {
+                        'display': 'flex'
+                    },
+                    '.flexbox-inner': {
+                        'flex-basis': '200px',
+                    }
+                }
+            });
+
+            const elCode = document.querySelector('.codepane__example[data-key="flexbox"] .codepane__code');
+            const elResult = document.querySelector('.codepane__example[data-key="flexbox"] .codepane__result');
+            expect(elCode.classList.contains('actived')).toBe(true);
+            expect(elResult.classList.contains('actived')).toBe(false);
         });
 
         it('will apply correct style to the result HTML according to the given CSS object.', () => {
@@ -205,12 +278,5 @@ describe('CodePane', () => {
 
             expect(codePane.el).toMatchSnapshot();
         });
-
-        console.warn(
-            "[Notice CodePane.spec.js] Still, you are responsible to test following visual effects \n" +
-            "   1. CodePane should show split view correctly, \n" +
-            "   2. CodePane should highlight the code (both CSS and HTML snippets) correctly. \n" +
-            "   3. CodePane should should the result HTML correctly.\n"
-        );
     });
 });

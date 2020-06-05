@@ -12,18 +12,24 @@ class CodePane {
      * @param {Element} el HTML Element of CodePane
      */
     constructor (el) {
+        // There are two states for a CodePane, which are the 'showing-code' state and the 'showing-result' state.
+        // When it's showing the current example's HTML & CSS snippets,  it's in the 'showing-code' state.
+        // When it's showing the current example's result HTML, it's in the 'showing-result' state.
+        this._state = 'showing-code';
         this._el = el;
         this._currentExampleKey = null;
 
         if (this._el.children.length > 0) {
             let firstChild = this._el.children[0];
-            let key = firstChild.dataset.key;
+            let keyOfFirstExample = firstChild.dataset.key;
 
             // Initialize split.js for all examples.
             this._initSplitViewForAllExamples();
             // Initialize highlight.js for all examples.
             this._initHighlightForAllExamples();
-            this.showExample(key);
+
+            // Calling the "showExample(...)" will ends the "creating" state.
+            this.showExample(keyOfFirstExample);
         }
     }
 
@@ -47,7 +53,12 @@ class CodePane {
         newActivedExample.classList.add('actived');
         this._currentExampleKey = newActivedExample.dataset.key;
 
-        this.showCode();
+        const exampleState = this._getExampleState(newActivedExample);
+        if (exampleState === 'showing-code' && this._state === 'showing-result') {
+            this.showResult();
+        } else if (exampleState === 'showing-result' && this._state === 'showing-code') {
+            this.showCode();
+        }
     }
 
     showCode () {
@@ -57,6 +68,8 @@ class CodePane {
 
         result.classList.remove('actived');
         code.classList.add('actived');
+
+        this._state = 'showing-code';
     }
 
     showResult () {
@@ -66,6 +79,8 @@ class CodePane {
 
         result.classList.add('actived');
         code.classList.remove('actived');
+
+        this._state = 'showing-result';
     }
 
     /**
@@ -87,6 +102,10 @@ class CodePane {
         const styleTag = document.createElement('style');
         styleTag.textContent = strCSS;
 
+        // Initialize the active states.
+        el.querySelector('.codepane__result').classList.remove('actived');
+        el.querySelector('.codepane__code').classList.add('actived');
+
         // Insert example's element to document.
         this._el.appendChild(el);
         document.head.appendChild(styleTag);
@@ -94,6 +113,15 @@ class CodePane {
         // Finally, initalize split.js for this new example.
         this._initSplitViewForExample(el);
         this._initHighlightForExample(el);
+    }
+
+    _getExampleState (example) {
+        var elCode = example.querySelector('.codepane__code');
+        if (elCode.classList.contains('actived')) {
+            return 'showing-code'
+        } else {
+            return 'showing-result';
+        }
     }
 
     _createElement (key, html, css) {
