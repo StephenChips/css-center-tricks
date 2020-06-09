@@ -38,7 +38,6 @@ class CodePane {
             return;
         }
 
-        console.log(exampleKey)
         let newActivedExample = this._findExampleByKey(exampleKey);
         if (newActivedExample === null) {
             throw new Error('The pane does not exists');
