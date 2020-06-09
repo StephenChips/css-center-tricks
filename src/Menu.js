@@ -29,11 +29,6 @@ function hasClass (className, el) {
 }
 
 /**
- * Problems:
- * 1. 
- */
-
-/**
  * # Behaviours
  * 1. Emit an 'active' event when we click a menu item.
  * 2. Update the current actived item after clicking
@@ -92,6 +87,34 @@ class Menu extends EventEmitter {
         this._bindClickEvents();
 
         this._$activedItem = this._findActivedItem();
+    }
+
+    setActivedItem (key, triggerEvent = false) {
+        let itemToBeActived = this._findMenuItemByKey(key);
+        if (itemToBeActived === null) {
+            throw new Error('No such item');
+        }
+        this._setActivedItem(itemToBeActived, triggerEvent);
+    }
+
+    _setActivedItem (itemToBeActived, triggerEvent) {
+        let previousActivedItem = this._$activedItem;
+
+        if (previousActivedItem !== itemToBeActived) {
+            itemToBeActived.classList.add(this.activedClass);
+            if (previousActivedItem !== null) {
+                previousActivedItem.classList.remove(this.activedClass);
+            }
+    
+            this._$activedItem = itemToBeActived;
+        }
+
+        if (triggerEvent) {
+            this.emit('active', {
+                key: itemToBeActived.dataset.key,
+                oldKey: previousActivedItem === null ? null : previousActivedItem.dataset.key
+            });
+        }
     }
 
     _verifyMenuElements (menuItems) {
@@ -228,35 +251,18 @@ class Menu extends EventEmitter {
         return (activedItem === undefined) ? null : activedItem;
     }
 
+    _findMenuItemByKey (key) {
+        return this._el.querySelector(`.${this.itemClass}[data-key="${key}"]`);
+    }
+
     _bindClickEvents () {
         let items = this._getMenuItems();
 
         for (let item of items) {
             item.addEventListener('click', () => {
-                let oldKey = (this._$activedItem === null) ?
-                    null :
-                    this._$activedItem.dataset.key;
-
-                this._adjustActivedItem(this._$activedItem, item);
-                this.emit('active', {
-                    key: this._$activedItem.dataset.key,
-                    oldKey
-                });
+                this._setActivedItem(item, true);
             });
         }
-    }
-
-    _adjustActivedItem (oldItem, newItem) {
-        if (oldItem === newItem) {
-            return;
-        }
-
-        this._setMenuItemActive(newItem);
-        if (oldItem !== null) {
-            this._setMenuItemInactive(oldItem)
-        }
-
-        this._$activedItem = newItem;
     }
 
     get el () {

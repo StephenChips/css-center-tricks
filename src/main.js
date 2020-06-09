@@ -3,17 +3,21 @@ import '../assets/examples.css'
 import CodePane from './CodePane';
 import Menu from './Menu';
 
-const defaultColorSettings = {
-    'color': 'white',
-    'background-color': '#00aaff'
-};
-
 const navMenuDataForPage = {
     'horizontal': [
         { key: 'h-flexbox', data: 'flexbox' },
         { key: 'h-auto-margin', data: 'auto margin' },
         { key: 'h-position-absolute', data: 'position absolute' },
         { key: 'h-text-align', data: 'text-align' }
+    ],
+    'vertical': [
+        { key: 'v-flexbox', data: 'flexbox' },
+        { key: 'v-position-absolute', data: 'position absolute' },
+        { key: 'v-vertical-align', data: 'vertical-align' }
+    ],
+    'horizontal-vertical': [
+        { key: 'h&v-flexbox', data: 'flexbox' },
+        { key: 'h&v-position-absolute', data: 'vertical-align' }
     ]
 };
 
@@ -51,8 +55,11 @@ function initElements () {
 }
 
 function setPage (key) {
-    $navmenu.setActivedItem();
+    $sidemenu.setActivedItem(key, false);
     $navmenu.setItems(navMenuDataForPage[key]);
+    const keyOfActivedExample = navMenuDataForPage[key][0].key;
+    $navmenu.setActivedItem(keyOfActivedExample);
+    $codePane.showExample(keyOfActivedExample);
 }
 
 function addExamplesToCodePane () {
@@ -80,7 +87,6 @@ function addExamplesToCodePane () {
             },
     
             '.centered': {
-                ...defaultColorSettings,
                 'display': 'block',
                 'width': '200px',
                 'margin': '0 auto'
@@ -100,7 +106,6 @@ function addExamplesToCodePane () {
             },
     
             '.centered': {
-                ...defaultColorSettings,
                 'position': 'absolute',
                 'width': '200px',
                 'left': '0',
@@ -118,7 +123,7 @@ function addExamplesToCodePane () {
         css: {
             '.wrapper': {
                 'display': 'block',
-                'text-align': 'center'
+                'text-align': 'center',
             },
     
             '.centered': {
@@ -126,6 +131,102 @@ function addExamplesToCodePane () {
             }
         }
     });
+
+    $codePane.addExample('v-flexbox', {
+        html: `<div class="wrapper">
+            <div class="centered">I'm vertical centered!</div>
+        </div>`,
+    
+        css: {
+            '.wrapper': {
+                'display': 'flex',
+                'align-items': 'center',
+                'height': '100%'
+            }
+        }
+    });
+
+    $codePane.addExample('v-position-absolute', {
+        html: `<div class="wrapper">
+            <div class="centered">I'm vertical centered!</div>
+        </div>`,
+
+        css: {
+            '.wrapper': {
+                'position': 'relative',
+                'height': '100%'
+            },
+            '.centered': {
+                'position': 'absolute',
+                'height': '200px',
+                'top': '0',
+                'bottom': '0',
+                'margin-top': 'auto',
+                'margin-bottom': 'auto'
+            }
+        }
+    });
+
+    $codePane.addExample('v-vertical-align', {
+        html: `<div class="wrapper">
+            <div class="centered">I'm vertical centered!</div>
+        </div>`,
+
+        css: {
+            '.wrapper': {
+                'height': '100%',
+            },
+            '.wrapper::after': {
+                'display': 'inline-block',
+                'content': '\'\'',
+                'width': '0',
+                'height': '100%',
+                'vertical-align': 'middle'
+            },
+            '.centered': {
+                'display': 'inline-block',
+            }
+        }
+    });
+
+    $codePane.addExample('h&v-flexbox', {
+        html: `<div class="wrapper">
+            <div class="centered">I'm vertical centered!</div>
+        </div>`,
+
+        css: {
+            '.wrapper': {
+                'height': '100%',
+                'display': 'flex',
+                'justify-content': 'center',
+                'align-items': 'center'
+            }
+        }
+    });
+
+    $codePane.addExample('h&v-position-absolute', {
+        html: `<div class="wrapper">
+            <div class="centered">I'm vertical centered!</div>
+        </div>`,
+
+        
+        css: {
+            '.wrapper': {
+                'height': '100%',
+                'position': 'relative'
+            },
+            '.centered': {
+                'position': 'absolute',
+                'top': '0',
+                'bottom': '0',
+                'left': '0',
+                'right': '0',
+                'height':'200px',
+                'width': '200px',
+                'margin': 'auto'
+            }
+        }
+    })
 }
 
 function initEventsForElements () {
@@ -139,11 +240,11 @@ function initEventsForElements () {
     
     $sidemenu.on('active', ({ key }) => {
         if (key === 'horizontal') {
-            $navmenu.setItems(navMenuDataForPage['horizontal']);
+            setPage('horizontal');
         } else if (key === 'vertical') {
-            $navmenu.setItems(navMenuDataForPage['vertical']);
+            setPage('vertical');
         } else if (key === 'horizontal-vertical') {
-            $navmenu.setItems(navMenuDataForPage['horizontal-vertical']);
+            setPage('horizontal-vertical');
         } else if (key === 'mindmap') {
             console.log('This page is under construction');
         } else {

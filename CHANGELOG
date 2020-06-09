@@ -1,0 +1,27 @@
+1. Deleted the Old webpack configuation "webpack.conf.js", and replaced it with two new configuations: 
+"webpack.dev.js" & "webpack.prod.js", which are for "development" mode and "production" mode, respectively.
+
+2. Created a new directory "/prod/dist" for containing the production mode's bundle created by webpack.
+
+3. Modified production mode's output path, a "publicPath" is appended before the original path. After such modification,
+all bundles are recreated.
+
+4. Installed the plugin "CleanWebpackPlugin" nto the project. It can empty the output directory first before webpack
+writes the new one.
+
+5. Finished the method "setActivedItem" of the "Menu" class, so that we can setup the initial actived item when initializing
+the system.
+
+6. Added remaining examples for "CodePane" through the "addExample" method, and added correspondening menu items for "NavMenu"
+and "SideMenu".
+
+---
+
+UI component explained:
+
+1. "CodePane" is the pane at the center of the page, which shows the example codes and style snippet, and can show the rendering result
+of the example if you click the "Show Result" button above it.
+
+2. "NavMenu" is the menu at the top of the page, which provides options that switch to another different example.
+
+3. "SideMenu" is the menu at the right of the page, which provides options at switch to another different page.

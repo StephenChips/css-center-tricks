@@ -1,13 +1,14 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-
+const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 
 module.exports = {
-    mode: 'development',
+    mode: 'production',
     entry: './src/main.js',
     output: {
-        path: path.resolve(__dirname, 'dist'),
-        filename: 'main.js'
+        path: path.resolve(__dirname, './prod/dist'),
+        filename: 'main.js',
+        publicPath: '/css-center-tricks'
     },
     module: {
       rules: [
@@ -28,12 +29,13 @@ module.exports = {
       ],
     },
     plugins: [
+        new CleanWebpackPlugin(),
         new HtmlWebpackPlugin({
             template: './index.html'
         })
     ],
     externals: {
-      jQuery: 'jQuery',
+      'jQuery': 'jQuery',
       'highlight.js': 'hljs'
     }
 };
