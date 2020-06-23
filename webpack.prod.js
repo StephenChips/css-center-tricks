@@ -1,7 +1,5 @@
 const path = require('path');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-const { CleanWebpackPlugin } = require('clean-webpack-plugin');
-const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
+const { module, plugins } = require('./webpack.common');
 
 module.exports = {
     mode: 'production',
@@ -13,31 +11,10 @@ module.exports = {
     },
     module: {
       rules: [
-          {
-            test: /\.m?js$/,
-            exclude: /(node_modules|bower_components)/,
-            use: {
-              loader: 'babel-loader',
-              options: {
-                presets: ['@babel/preset-env']
-              }
-            }
-          },
-          {
-            test: /\.css$/i,
-            use: ['style-loader', 'css-loader'],
-          },
+          ...module.rules
       ],
     },
     plugins: [
-        new CleanWebpackPlugin(),
-        new HtmlWebpackPlugin({
-            template: './index.html'
-        }),
-        new BundleAnalyzerPlugin()
-    ],
-    externals: {
-      'jQuery': 'jQuery',
-      'highlight.js': 'hljs'
-    }
+      ...plugins
+    ]
 };
