@@ -1,10 +1,13 @@
 import '../assets/CodePane.css';
 import split from 'split.js';
-import hljs from 'highlight.js';
-import prettier from 'prettier/standalone.js';
-import PrettierHTMLParser from 'prettier/parser-html.js';
-import PrettierCSSParser from 'prettier/parser-postcss.js';
-import escapeHTML from 'escape-html';
+
+// This is the key that we set on a style tag. It is used to identify
+// the example which it relates to. 
+const STYLE_EXAMPLE_KEYNAME = 'data-codepane-example-key';
+
+// This is the key that we set on an example's element. It is the
+// unique ID of the example in a CodePane.
+const EXAMPLE_KEYNAME = 'data-key';
 
 class CodePane {
     /**
@@ -21,12 +24,10 @@ class CodePane {
 
         if (this._el.children.length > 0) {
             let firstChild = this._el.children[0];
-            let keyOfFirstExample = firstChild.dataset.key;
+            let keyOfFirstExample = firstChild.getAttribute(EXAMPLE_KEYNAME);
 
             // Initialize split.js for all examples.
             this._initSplitViewForAllExamples();
-            // Initialize highlight.js for all examples.
-            this._initHighlightForAllExamples();
 
             // Calling the "showExample(...)" will ends the "creating" state.
             this.showExample(keyOfFirstExample);
@@ -51,7 +52,7 @@ class CodePane {
         }
 
         newActivedExample.classList.add('actived');
-        this._currentExampleKey = newActivedExample.dataset.key;
+        this._currentExampleKey = newActivedExample.getAttribute(EXAMPLE_KEYNAME);
 
         const exampleState = this._getExampleState(newActivedExample);
         if (exampleState === 'showing-code' && this._state === 'showing-result') {
@@ -62,23 +63,33 @@ class CodePane {
     }
 
     showCode () {
-        let example = this._findExampleByKey(this._currentExampleKey);
-        let code = example.querySelector('.codepane__code');
-        let result = example.querySelector('.codepane__result');
-
-        result.classList.remove('actived');
-        code.classList.add('actived');
+        if (this._el.children.length > 0) {
+            // this._currentExampleKey points to the example that is currently being shown.
+            // And because of that, it will not be null or undefined, except there are no
+            // examples in the CodePane. In that situation, it must be null.
+            let example = this._findExampleByKey(this._currentExampleKey);
+            let code = example.querySelector('.codepane__code');
+            let result = example.querySelector('.codepane__result');
+    
+            result.classList.remove('actived');
+            code.classList.add('actived');
+        }
 
         this._state = 'showing-code';
     }
 
     showResult () {
-        let example = this._findExampleByKey(this._currentExampleKey);
-        let code = example.querySelector('.codepane__code');
-        let result = example.querySelector('.codepane__result');
-
-        result.classList.add('actived');
-        code.classList.remove('actived');
+        if (this._el.children.length > 0) {
+            // this._currentExampleKey points to the example that is currently being shown.
+            // And because of that, it will not be null or undefined, except there are no
+            // examples in the CodePane. In that situation, it must be null.
+            let example = this._findExampleByKey(this._currentExampleKey);
+            let code = example.querySelector('.codepane__code');
+            let result = example.querySelector('.codepane__result');
+    
+            result.classList.add('actived');
+            code.classList.remove('actived');    
+        }
 
         this._state = 'showing-result';
     }
@@ -86,72 +97,62 @@ class CodePane {
     /**
      * Add an example to a codepane.
      * @param {string} key example's key
-     * @param {{ html: string, css: object }}} param1 object specifies example's style
+     * @param {{ html: string, css: string, htmlSnippet: string, cssSnippet: string }}} param1 object specifies an example's content
      */
-    addExample (key, { html, css }) {
+    addExample (key, { html, css, htmlSnippet, cssSnippet }) {
         if (this._findExampleByKey(key) !== null) {
             throw new Error('Your example\'s key is same with an existed example.');
         }
 
-        // create html elements and CSS from argument.
-        const el = this._createElement(key, html, css);
-        const scopedCSSObject = this._createScopedCSSObject(key, css);
-        const strCSS = this._convertCSSObjectToString(scopedCSSObject);
+        // Firstm we create DOM structure through arguments.
+        const $example = this._parseHTML(
+`<div class="codepane__example" data-key="${key}">
+    <div class="codepane__code">
+        <div class="codepane__html">
+            <pre><code>${htmlSnippet}</code></pre>
+        </div>
+        <div class="codepane__css">
+            <pre><code>${cssSnippet}</code></pre>
+        </div>
+    </div>
+    <div class="codepane__result">
+        ${html}
+    </div>
+</div>`
+        );
 
-        // Create <style> tag with generated CSS.
+        // Then, we initialize the CodePane's states. The code snippets is show first by default.
+        const $result = $example.querySelector('.codepane__result');
+        const $code = $example.querySelector('.codepane__code');
+        if (this._state === 'showing-code') {
+            $code.classList.add('actived');
+        } else if (this._state === 'showing-result') {
+            $result.classList.add('actived');
+        }
+
+        // Then, we insert <style> tag with scoped style rules to the <head> element.
         const styleTag = document.createElement('style');
-        styleTag.textContent = strCSS;
-
-        // Initialize the active states.
-        el.querySelector('.codepane__result').classList.remove('actived');
-        el.querySelector('.codepane__code').classList.add('actived');
-
-        // Insert example's element to document.
-        this._el.appendChild(el);
+        styleTag.setAttribute(STYLE_EXAMPLE_KEYNAME, key);
+        styleTag.textContent = this._addScopeToCssRules(css);
+        
+        this._el.appendChild($example);
         document.head.appendChild(styleTag);
 
         // Finally, initalize split.js for this new example.
-        this._initSplitViewForExample(el);
-        this._initHighlightForExample(el);
+        this._initSplitViewForExample($example);
     }
 
     _getExampleState (example) {
         var elCode = example.querySelector('.codepane__code');
         if (elCode.classList.contains('actived')) {
-            return 'showing-code'
+            return 'showing-code';
         } else {
             return 'showing-result';
         }
     }
 
-    _createElement (key, html, css) {
-        const formattedHTML = escapeHTML(prettier.format(html, {
-            parser: 'html',
-            tabWidth: 4,
-            plugins: [ PrettierHTMLParser ]
-        }));
-
-        const formattedCSS = prettier.format(this._convertCSSObjectToString(css), {
-            parser: 'css',
-            tabWidth: 4,
-            plugins: [ PrettierCSSParser ]
-        });
-
-        return this._parseHTML(`
-            <div class="codepane__example" data-key="${key}">
-                <div class="codepane__code">
-                    <div class="codepane__html">
-                        <pre><code>${formattedHTML.trim()}</code></pre>
-                    </div>
-                    <div class="codepane__css">
-                        <pre><code>${formattedCSS.trim()}</code></pre>
-                    </div>
-                </div>
-                <div class="codepane__result">
-                    ${html}
-                </div>
-            </div>`
-        );
+    _addScopeToCssRules (css) {
+        return css;
     }
 
     _parseHTML (str) {
@@ -220,21 +221,6 @@ class CodePane {
         for (let example of allExamples) {
             this._initSplitViewForExample(example);
         }
-    }
-
-    _initHighlightForAllExamples () {
-        const allExamples = this._el.querySelectorAll('.codepane__example');
-
-        for (let example of allExamples) {
-            this._initHighlightForExample(example);
-        }
-    }
-
-    _initHighlightForExample (example) {
-        const htmlSnippet = example.querySelector('.codepane__html');
-        const cssSnippet = example.querySelector('.codepane__css');
-        hljs.highlightBlock(htmlSnippet);
-        hljs.highlightBlock(cssSnippet);
     }
 
     get el () {

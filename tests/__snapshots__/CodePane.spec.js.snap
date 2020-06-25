@@ -1,39 +1,37 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`CodePane Test addExample(...) render HTML & CSS snippets correctly when we call "showCode()" 1`] = `
+exports[`Test addExample(...) render HTML & CSS snippets correctly when we call "showCode()" 1`] = `
 <div
   class="codepane"
   id="codepane"
 >
   <div
     class="codepane__example actived"
-    data-key="flexbox"
+    data-key="dummy"
   >
     
-                
+    
     <div
       class="codepane__code actived"
     >
       
-                    
+        
       <div
         class="codepane__html"
         style="flex-basis: calc(50% - 2.5px);"
       >
         
-                        
+            
         <pre>
           <code>
-            &lt;div class="flexbox"&gt;
-    &lt;div class="flexbox-inner"&gt;hello, world&lt;/div&gt;
-&lt;/div&gt;
+            &lt;div&gt;&lt;div/&gt;
           </code>
         </pre>
         
-                    
+        
       </div>
       
-                    
+        
       <div
         class="gutter gutter-horizontal"
         style="flex-basis: 5px;"
@@ -43,88 +41,88 @@ exports[`CodePane Test addExample(...) render HTML & CSS snippets correctly when
         style="flex-basis: calc(50% - 2.5px);"
       >
         
-                        
+            
         <pre>
           <code>
-            .flexbox {
-    display: flex;
-}
-.flexbox-inner {
-    flex-basis: 200px;
-}
+            <span
+              class="selector"
+            >
+              div
+            </span>
+             {
+            <br />
+                
+            <span
+              class="property-name"
+            >
+              display
+            </span>
+            : 
+            <span
+              class="property-value"
+            >
+              flex
+            </span>
+            ;
+            <br />
+            }
           </code>
         </pre>
         
-                    
+        
       </div>
       
-                
+    
     </div>
     
-                
+    
     <div
       class="codepane__result"
     >
       
-                    
-            
-      <div
-        class="flexbox"
-      >
         
-                
-        <div
-          class="flexbox-inner"
-        >
-          hello, world
-        </div>
-        
-            
-      </div>
+      <div />
       
-        
-                
+    
     </div>
     
-            
+
   </div>
 </div>
 `;
 
-exports[`CodePane Test addExample(...) render result correctly when we call "showResult()" 1`] = `
+exports[`Test addExample(...) render result correctly when we call "showResult()" 1`] = `
 <div
   class="codepane"
   id="codepane"
 >
   <div
     class="codepane__example actived"
-    data-key="flexbox"
+    data-key="dummy"
   >
     
-                
+    
     <div
       class="codepane__code"
     >
       
-                    
+        
       <div
         class="codepane__html"
         style="flex-basis: calc(50% - 2.5px);"
       >
         
-                        
+            
         <pre>
           <code>
-            &lt;div class="flexbox"&gt;
-    &lt;div class="flexbox-inner"&gt;hello, world&lt;/div&gt;
-&lt;/div&gt;
+            &lt;div&gt;&lt;div/&gt;
           </code>
         </pre>
         
-                    
+        
       </div>
       
-                    
+        
       <div
         class="gutter gutter-horizontal"
         style="flex-basis: 5px;"
@@ -134,50 +132,52 @@ exports[`CodePane Test addExample(...) render result correctly when we call "sho
         style="flex-basis: calc(50% - 2.5px);"
       >
         
-                        
+            
         <pre>
           <code>
-            .flexbox {
-    display: flex;
-}
-.flexbox-inner {
-    flex-basis: 200px;
-}
+            <span
+              class="selector"
+            >
+              div
+            </span>
+             {
+            <br />
+                
+            <span
+              class="property-name"
+            >
+              display
+            </span>
+            : 
+            <span
+              class="property-value"
+            >
+              flex
+            </span>
+            ;
+            <br />
+            }
           </code>
         </pre>
         
-                    
+        
       </div>
       
-                
+    
     </div>
     
-                
+    
     <div
       class="codepane__result actived"
     >
       
-                    
-            
-      <div
-        class="flexbox"
-      >
         
-                
-        <div
-          class="flexbox-inner"
-        >
-          hello, world
-        </div>
-        
-            
-      </div>
+      <div />
       
-        
-                
+    
     </div>
     
-            
+
   </div>
 </div>
 `;
