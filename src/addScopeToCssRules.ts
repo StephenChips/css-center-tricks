@@ -165,7 +165,7 @@ class SimpleCSSParser {
                 case '@media':
                 case '@support':
                     const start = this.cursor;
-                    this._skipUntil(ch => ch === '{');
+                    this._moveCursorUntil(ch => ch === '{');
                     const conditions = this.rules.slice(start, this.cursor);
                     
                     this.cursor++;
@@ -177,7 +177,7 @@ class SimpleCSSParser {
                         rules
                     };
                 case '@keyframes':
-                    const animationName = this._parseKeyframesName();
+                    const animationName = this._parseKeyframesIdent();
                     const keyframesDeclr = this._parseKeyframesDeclr();
                     return {
                         type: '@keyframes',
@@ -195,7 +195,7 @@ class SimpleCSSParser {
         }
     }
 
-    private _skipUntil (shouldStop : (ch : string) => boolean) : void {
+    private _moveCursorUntil (shouldStop : (ch : string) => boolean) : void {
         while (this.cursor < this.rules.length && !shouldStop(this.rules[this.cursor])) {
             this.cursor++;
         }
@@ -203,24 +203,103 @@ class SimpleCSSParser {
 
     private _parseTheNameOfAtRule () : string {
         let start : number = this.cursor;
-        this._skipUntil(this._isWhitespaceOrBreak.bind(this));
+        this._moveCursorUntil(this._isWhitespaceOrBreak.bind(this));
+        return this.rules.slice(start, this.cursor);
+    }
+
+    private _parseKeyframesIdent () : string {
+        const ESCAPE = '\\';
+        let END_CHAR; // The char shows the end of the keyframes ident.
+        let currentChar = this._getCurrentChar();
+        let start = this.cursor;
+
+        if (currentChar === '"' || currentChar === '\'') {
+            // Situation One: the identification is quoted. e.g. @keyframes "fade out" { ... }
+            END_CHAR = currentChar;
+            this.cursor++; // skip the start quote.
+        } else {
+            // Situation Two: the identification is not quoted. e.g. @keyframes fade-out { ... }
+            END_CHAR = ' ';
+        }
+
+        while (true) {
+            currentChar = this._getCurrentChar();
+            if (currentChar === ESCAPE) {
+                // In CSS, characters can be escaped by the '\' character.
+                // If we meet that character, we will know the next character
+                // is escaped, and they will never be the end char. 
+                // so we can simply skip them together.
+                this.cursor += 2;
+            } else if (currentChar === END_CHAR) {
+                break;
+            } else {
+                this.cursor++;
+            }
+        }
+
+        if (currentChar === '"' || currentChar === '\'') {
+            this.cursor++; // Skip the end quote.
+        }
+
+        this._skipWhitespacesAndBreaks(); 
+
         return this.rules.slice(start, this.cursor);
     }
 
     private _parseKeyframesDeclr() : string {
-        return '';
-    }
 
-    private _parseKeyframesName () : string {
-        return '';
     }
 
     private _parseListOfSelectors () : string[] {
-        return []
+        // Assumed we have skipped all whitespaces
+        // and return characters.
+        let selectors = [];
+
+        while (this._getCurrentChar() !== '{') {
+            let start = this.cursor;
+
+            // A ',' will shows up between two selectors, and
+            // a ';' will shows up at the end of the selector
+            // list.
+            while (this._getCurrentChar() !== ',' && this._getCurrentChar() !== '{') {
+                this.cursor++;
+            }
+
+            let sel = this.rules.slice(start, this.cursor);
+            selectors.push(sel.trim());
+        }
+
+        return selectors;
     }
 
     private _parseDecalarations () : { property: string, value: string }[] {
-        return []
+        /**
+         * Assumed we have skipped all whitespaces and breaks.
+         * A decalaration is something like following example:
+         * `color : red;`
+         */
+        let decalarations : { property: string, value: string }[] = [];
+
+        while (this._getCurrentChar() !== '}') {
+            let property, value, start;
+
+            start = this.cursor;
+            this._moveCursorUntil(ch => ch === ':');
+            property = this.rules.slice(start, this.cursor).trim();
+
+            this.cursor++; // skip the colon
+            this._skipWhitespacesAndBreaks();
+
+            start = this.cursor;
+            this._moveCursorUntil(ch => ch === ';')
+            value = this.rules.slice(start, this.cursor).trim();
+
+            decalarations.push({
+                property,
+                value
+            });
+        }
+        return decalarations;
     }
 
     // FIXME
@@ -228,7 +307,6 @@ class SimpleCSSParser {
         /**
          * A CSS Rule can be seen as two parts, the selector group,
          * and the declaration block.
-         * 
          */
 
         this._skipWhitespacesAndBreaks();
@@ -238,6 +316,7 @@ class SimpleCSSParser {
         // We need to skip it.
         this.cursor++;
 
+        this._skipWhitespacesAndBreaks();
         const declarations = this._parseDecalarations();
 
         // After parsing decalarations, the cursor should pause on a '}'.
@@ -248,11 +327,15 @@ class SimpleCSSParser {
             type: 'cssRule',
             selectors: selectors,
             decalrations: declarations
-        }
+        };
     }
 
-    private _isWhitespaceOrBreak (ch) {
+    private _isWhitespaceOrBreak (ch : string) {
         return ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n';
+    }
+
+    private _getCurrentChar () {
+        return this.rules[this.cursor];
     }
 }
 
