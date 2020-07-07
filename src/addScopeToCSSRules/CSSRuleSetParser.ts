@@ -7,6 +7,7 @@ type Nullable<T extends object> = { [prop in keyof T]: T[prop] | null };
  * This parser should only be used for the function addScopeToCssRule.
  */
 export class CSSRuleSetParser {
+    private hasParsed : boolean = false;
     private rules : string;
     private cursor : number = 0;
     private result : Rule[];
@@ -18,37 +19,42 @@ export class CSSRuleSetParser {
     }
 
     public parse () {
-        if (this.result !== null) {
+        if (this.hasParsed) {
             return this.result;
         }
 
         this.result = [];
         
-        // We make an assumption that the input CSS rules are correct. It neither
-        // has any syntax errors, nor has any sematic errors (e.g. unknown properties,
-        // illegal units).
+        // We make an assumption that the input CSS rules are symatically correct, which
+        // means it can be parsed correctly by any CSS parser. Beware that there may be
+        // some sematic errors in the input, e.g. unknown properties, invalid values, but
+        // they will not make our parser throws error.
 
-        return this.parseRuleSet();
-    }
-
-    private parseRuleSet () : Rule[] {
-        this.skipWhitespacesAndBreaks();
-
-        // If you meet a '}'. You must be reach the end of a rule set, which belongs
-        // to a ConditionalRuleSet, e.g. @media, @support.
-        while (this.cursor < this.rules.length && this.rules[this.cursor] !== '}') {
-            let rule : Rule = this.parseRule();
-            this.skipWhitespacesAndBreaks();
-            this.result.push(rule);
-        }
-
+        this.result = this.parseRuleSet();
+        this.hasParsed = true;
         return this.result;
     }
 
-    private skipWhitespacesAndBreaks () {
-        while (this.cursor < this.rules.length && this._isWhitespaceOrBreak(this.rules[this.cursor])) {
-            this.cursor++;
+    private parseRuleSet () : Rule[] {
+        let ruleSet = [];
+        this.skipWhitespacesAndBreaks();
+
+        // There are two situations indicates you will reach at the end of a Rule Set.
+        // One situation is that you reach the end of the parsing string.
+        // The other situation is that you encounter an right-brace '}' character.
+        // The reason of the second situation is that a Rule Set can be embraced inside
+        // a @media or @supported At-Rule by an pair of braces.
+        while (this.cursor < this.rules.length && this.rules[this.cursor] !== '}') {
+            let rule : Rule = this.parseRule();
+            this.skipWhitespacesAndBreaks();
+            ruleSet.push(rule);
         }
+
+        return ruleSet;
+    }
+
+    private skipWhitespacesAndBreaks () {
+        this.cursor = skipWhitespacesAndBreaks(this.rules, this.cursor);
     }
 
     private parseRule () : Rule {
@@ -56,18 +62,23 @@ export class CSSRuleSetParser {
         if (this.rules[this.cursor] === '@') {
             // We can peek the first character to see if it is an At-Rule.
             // If it is, we deal with it according to the At-Rule's name.
-            let atRuleName = this._parseTheNameOfAtRule();
+            let atRuleName = this.parseTheNameOfAtRule();
             this.skipWhitespacesAndBreaks();
             
             switch (atRuleName) {
                 case '@media':
-                case '@support':
+                case '@supports':
                     const start = this.cursor;
-                    this._moveCursorUntil(ch => ch === '{');
+                    this.moveCursorUntil(ch => ch === '{');
                     const conditions = this.rules.slice(start, this.cursor);
                     
-                    this.cursor++;
+                    this.cursor++; // skip the left brace
+
+                    // the cursor should end up at a left brace
+                    // after we parsed a rule set.
                     const rules = this.parseRuleSet();
+
+                    this.cursor++ // skip the right brace
 
                     return {
                         type: atRuleName,
@@ -75,8 +86,9 @@ export class CSSRuleSetParser {
                         rules
                     };
                 case '@keyframes':
-                    const animationName = this._parseKeyframeIdent();
-                    const keyframesDeclr = this._parseKeyframeDeclr();
+                    const animationName = this.parseKeyframeIdent();
+                    this.skipWhitespacesAndBreaks();
+                    const keyframesDeclr = this.parseKeyframeDeclr();
                     return {
                         type: '@keyframes',
                         name: animationName,
@@ -85,94 +97,65 @@ export class CSSRuleSetParser {
                 default:
                     throw new Error([
                         `The At-Rule "${atRuleName}" is not supported.` +
-                        `Currently supported At-Rules are @media, @support and @keyframes.`
+                        `Currently supported At-Rules are @media, @supports and @keyframes.`
                     ].join('\n'));
             }
         } else {
             // Otherwise, it is a CSS rule. we parse it.
-            return this._parseCSSRule();
+            return this.parseCSSRule();
         }
     }
 
-    private _moveCursorUntil (shouldStop : (ch : string) => boolean) : void {
-        while (this.cursor < this.rules.length && !shouldStop(this.rules[this.cursor])) {
-            this.cursor++;
-        }
+    private moveCursorUntil (shouldStop : (ch : string) => boolean) : void {
+        this.cursor = moveCursorUntil(this.rules, this.cursor, shouldStop);
     }
 
-    private _parseTheNameOfAtRule () : string {
+    private parseTheNameOfAtRule () : string {
         let start : number = this.cursor;
-        this._moveCursorUntil(this._isWhitespaceOrBreak.bind(this));
+        this.moveCursorUntil(this.isWhitespaceOrBreak.bind(this));
         return this.rules.slice(start, this.cursor);
     }
 
-    private _parseKeyframeIdent () : string {
-        const ESCAPE = '\\';
-        let END_CHAR; // The char indicates the end of the keyframes ident.
-        let currentChar = this._getCurrentChar();
-        let start = this.cursor;
+    private parseKeyframeIdent () : string {
+        // Well, a keyframe's identifier can be seen as a CSS <custom-ident>,
+        // which is one kind of CSS value.
+        let parseResult = parseSingleCSSValue(this.rules, this.cursor, new Set([ ' ' ]));
+        this.cursor = parseResult.cursor;
 
-        if (currentChar === '"' || currentChar === '\'') {
-            // Situation One: the identification is quoted.
-            // e.g. @keyframes "fade out" { ... }
-            END_CHAR = currentChar;
-            this.cursor++; // skip the start quote.
-        } else {
-            // Situation Two: the identification is not quoted.
-            // e.g. @keyframes fade-out { ... }
-            END_CHAR = ' ';
-        }
-
-        while (true) {
-            currentChar = this._getCurrentChar();
-            if (currentChar === ESCAPE) {
-                // If a character is escaped, it won't be the end char,
-                // so we can skip it with the escape character together.
-                this.cursor += 2;
-            } else if (currentChar === END_CHAR) {
-                break;
-            } else {
-                this.cursor++;
-            }
-        }
-
-        if (currentChar === '"' || currentChar === '\'') {
-            this.cursor++; // Skip the end quote.
-        }
-
-        this.skipWhitespacesAndBreaks(); 
-
-        return this.rules.slice(start, this.cursor);
+        return parseResult.result;
     }
 
-    private _parseKeyframeDeclr() : string {
+    private parseKeyframeDeclr() : string {
         this.braceParser.parse(this.rules, this.cursor);
         this.cursor = this.braceParser.getEndPos();
         return this.braceParser.getParsedString();
     }
 
-    private _parseListOfSelectors () : string[] {
+    private parseListOfSelectors () : string[] {
         // We assumed we have skipped all whitespaces
         // and return characters.
         let selectors = [];
 
-        while (this._getCurrentChar() !== '{') {
+        while (this.getCurrentChar() !== '{') {
             let start = this.cursor;
 
             // The character ',' will show up between two selectors, and
             // the character '{' will show up at the end of the selector list.
-            while (this._getCurrentChar() !== ',' && this._getCurrentChar() !== '{') {
-                this.cursor++;
-            }
+            this.moveCursorUntil(ch => ch === ',' || ch === '{');
 
             let sel = this.rules.slice(start, this.cursor);
             selectors.push(sel.trim());
+
+            if (this.getCurrentChar() === ',') {
+                this.cursor++;
+                this.skipWhitespacesAndBreaks();
+            }
         }
 
         return selectors;
     }
 
-    private _parseDeclarations () : Declaration[] {
+    private parseDeclarations () : Declaration[] {
         /**
          * We assumed we have skipped all whitespaces and breaks.
          * A decalaration is something like following:
@@ -180,18 +163,25 @@ export class CSSRuleSetParser {
          */
         let declarations : Declaration[] = [];
 
-        while (this._getCurrentChar() !== '}') {
+        this.skipWhitespacesAndBreaks();
+
+        while (this.getCurrentChar() !== '}') {
+            // Parse the <property>:<value>; pair.
             let start = this.cursor;
-            this._moveCursorUntil(ch => ch === ':');
+            this.moveCursorUntil(ch => ch === ':');
             let property = this.rules.slice(start, this.cursor).trim();
 
-            this.cursor++; // skip the colon
+            this.cursor++;
             this.skipWhitespacesAndBreaks();
 
             start = this.cursor;
-            this._moveCursorUntil(ch => ch === ';')
+            this.moveCursorUntil(ch => ch === ';');
             let value = this.rules.slice(start, this.cursor).trim();
 
+            this.cursor++;
+            this.skipWhitespacesAndBreaks();
+
+            // Determine the type of the declaration.
             if (property === 'animation') {
                 declarations.push({
                     type: 'animation',
@@ -215,21 +205,21 @@ export class CSSRuleSetParser {
         return declarations;
     }
 
-    private _parseCSSRule () : CSSRule {
+    private parseCSSRule () : CSSRule {
         /**
          * A CSS Rule can be seen as two parts, the selector group,
          * and the declaration block.
          */
 
         this.skipWhitespacesAndBreaks();
-        const selectors = this._parseListOfSelectors();
+        const selectors = this.parseListOfSelectors();
         
         // After parsing selectors, the cursor should pause on a '{'.
         // We need to skip it.
         this.cursor++;
 
         this.skipWhitespacesAndBreaks();
-        const declarations = this._parseDeclarations();
+        const declarations = this.parseDeclarations();
 
         // After parsing decalarations, the cursor should pause on a '}'.
         // We need to skip it.
@@ -242,11 +232,11 @@ export class CSSRuleSetParser {
         };
     }
 
-    private _isWhitespaceOrBreak (ch : string) {
-        return ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n';
+    private isWhitespaceOrBreak (ch : string) {
+        return / |\t|\r|\n|\v|\f/.test(ch);
     }
 
-    private _getCurrentChar () {
+    private getCurrentChar () {
         return this.rules[this.cursor];
     }
 }
@@ -283,28 +273,25 @@ class NestedBraceParser {
     private parseNestedBraces () : void {
         const ESCAPE = '\\';
 
-        // First, we need to find the first left brace.
-        //
-        // Because we always encounter the escape character first, and after
-        // finding it, we skip it with the next character (the one that is
-        // escaped) together. So, our cursor will never be positioned at a
-        // escaped '{'. Therefore, when the cursor points at a '{', we find
-        //  a unescaped '{', the real first '{' we are looking for.
+        // First, we need to find the first left brace that are not escaped.
         while (this.cursor < this.str.length && this.str[this.cursor] !== '{') {
             if (this.str[this.cursor] === ESCAPE) {
-                this.cursor += 2;
-            } else {
                 this.cursor++;
             }
+            this.cursor++;
         }
 
         if (this.cursor === this.str.length) {
             return;
         }
 
-        this.numberOfOpenBraces++;
+        this.numberOfOpenBraces = 1;
+        this.cursor++;
+
         while (this.cursor < this.str.length && this.numberOfOpenBraces > 0) {
-            if (this.str[this.cursor] === '{') {
+            if (this.str[this.cursor] === ESCAPE) {
+                this.cursor++;
+            } else if (this.str[this.cursor] === '{') {
                 this.numberOfOpenBraces++;
             } else if (this.str[this.cursor] === '}') {
                 this.numberOfOpenBraces--;
@@ -315,7 +302,7 @@ class NestedBraceParser {
 }
 
 class AnimationValueParser {
-    private animationValues : string[];
+    private listOfValueList : string[][];
 
     private mapTypeOfKeyword = new Map<string, AnimationProperty>([
         [ 'ease', 'timing-function' ],
@@ -341,13 +328,18 @@ class AnimationValueParser {
         [ 'infinite', 'iteration-count' ]
     ]);
 
-    public parse (str : string) : AnimationValue {
+    public parse (str : string) : AnimationValue[] {
         // We can promise that after the process, all
         // animation values are retained, so none of
         // them could be null or undefined.
+        return this.splitValueLists(str).map(this.createAnimationValueFromList.bind(this));
+    }
+
+    
+    private createAnimationValueFromList (listOfValue : string[]) : AnimationValue {
         let result : Nullable<AnimationValue>;
-        this.animationValues = str.split(' ');
-        if (this.animationValues.length === 8) {
+
+        if (this.listOfValueList.length === 8) {
             result = {
                 'name': null,
                 'duration': null,
@@ -359,14 +351,14 @@ class AnimationValueParser {
                 'fill-mode': null,
                 'play-state': null
             };
-        } else if (this.animationValues.length === 4) {
+        } else if (this.listOfValueList.length === 4) {
             result = {
                 'duration': null,
                 'timing-function': null,
                 'delay': null,
                 'name': null
             };
-        } else if (this.animationValues.length === 2) {
+        } else if (this.listOfValueList.length === 2) {
             result = {
                 'duration': null,
                 'name': null
@@ -375,31 +367,36 @@ class AnimationValueParser {
             throw new Error('Illegal animation value');
         }
     
-        for (let value of this.animationValues) {
+        for (let value of listOfValue) {
             const proplist = this.getApplicableProperties(value);
             const LEN = proplist.length;
     
             for (let i = 0; i < LEN; i++) {
-                const PROP = proplist[i];
+                let PROP = proplist[i];
                 if (hasOwnProperty(result, PROP)) {
                     // We need this property
-                    if (result[PROP] === null) {
-                        // We have found another value for this property before.
+                    if (result[PROP] !== null) {
+                        // If it is not null, it means we have found another value
+                        // for this property before.
                         continue;
                     } else {
-                        // We haven't found value for this property.
-                        // so we mark it as found.
+                        // We haven't found value for this property before.
+                        // Now we found one.
                         result[PROP] = value;
+                        break;
                     }
                 } else {
+                    // We don't need this property
                     if (i < LEN - 1) {
-                        // We don't need this property, try next one.
+                        // Well, there are other properties that have
+                        // not try yet in the `proplist`, and maybe
+                        // we need some of them.
                         continue;
                     } else {
                         // We try all applicable properties but none
                         // of them are required. So we have to throw
                         // an error.
-                        new Error('Illegal animation value');
+                        throw new Error('Illegal animation value');
                     }
                 }
             }
@@ -477,7 +474,7 @@ class AnimationValueParser {
     }
 
     private isForbiddenWord (value : string) : boolean {
-        return value === 'none' || value === 'initial' || value === 'inherit' || value === 'unset';
+        return /none|initial|inherit|unset/.test(value);
     }
 
     // Determine if a value is a <time>, e.g. 250ms, 0.13e4ms, 1.5s.
@@ -492,4 +489,89 @@ class AnimationValueParser {
 
         return false;
     }
+
+    private splitValueLists (str : string) : string[][] {
+        let cursor = 0;
+        let result = [];
+
+        cursor = skipWhitespacesAndBreaks(str, cursor);
+        while (cursor < str.length && str[cursor] !== ';') {
+            let list = [];
+            while (cursor < str.length && str[cursor] !== ';' && str[cursor] !== ',') {
+                let parsedResult = parseSingleCSSValue(str, cursor, new Set([ ',', ';' ]));
+                list.push(parsedResult.result);
+                cursor = skipWhitespacesAndBreaks(str, parsedResult.cursor);
+            }
+            result.push(list);
+        }
+
+        return result;
+    }
+}
+
+/**
+ * Parse a CSS value.
+ * e.g. 2s 1px "fade out" left
+ * @param str string to be parsed.
+ * @param cursor the start position to parse
+ * @param followSet a set of characters that may appear right after a CSS value.
+ */
+function parseSingleCSSValue (str : string, cursor : number, followSet : Set<string>) {
+    const ESCAPE = '\\';
+    let isEndsWithQuote = false;
+    let quote : string = ''; // The char indicates the end of a value.
+    let currentChar = str[cursor];
+    let start = cursor;
+
+    if (currentChar === '"' || currentChar === '\'') {
+        // Situation One: the value is quoted.
+        // e.g. animation-name: "fade out" { ... }
+        isEndsWithQuote = true;
+        quote = currentChar;
+        cursor++; // skip the start quote.
+    }
+
+    while (cursor < str.length) {
+        currentChar = str[cursor];
+        if (currentChar === ESCAPE) {
+            // If a character is escaped, it won't be the end char,
+            // so we can skip it with the escape character together.
+            cursor += 2;
+        } else if (isEndsWithQuote && currentChar === quote) {
+            break;
+        } else if (!isEndsWithQuote && followSet.has(currentChar)) {
+            break;
+        }else {
+            cursor++;
+        }
+    }
+
+    // The cursor will stop at the END_CHAR after the loop.
+    if (isEndsWithQuote) {
+        if (cursor >= str.length) {
+            throw new Error('Missing quote');
+        } else {
+            cursor++; // Skip the end quote.
+        }
+    }
+
+    return {
+        result: str.slice(start, cursor),
+        cursor
+    };
+}
+
+function moveCursorUntil (str : string, cursor : number, shouldStop : (ch : string) => boolean) : number {
+    while (cursor < str.length && !shouldStop(str[cursor])) {
+        cursor++;
+    }
+    return cursor;
+}
+
+function skipWhitespacesAndBreaks (str : string, cursor : number) {
+    return moveCursorUntil(str, cursor, ch => !isWhitespaceOrBreak(ch));
+}
+
+function isWhitespaceOrBreak (ch : string) {
+    return /[ \t\r\n\v\f]/.test(ch);
 }

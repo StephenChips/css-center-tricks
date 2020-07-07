@@ -12,18 +12,22 @@ import { hasOwnProperty } from "../utils";
 
 export class CSSRuleSetStringSerializer {
     public serialize (ruleSet : Rule[]) : string {
-        let strRules = ruleSet.map(rule => {
-            if (rule.type === 'cssRule') {
-                return this.serializeCssRule(rule);
-            } else if (rule.type === '@keyframes') {
-                return this.serializeKeyframeAtRule(rule);
-            } else {
-                // @meida & @support
-                return this.serializeConditionalAtRule(rule);
-            }
-        });
-
-        return strRules.join('\n');
+        if (ruleSet.length === 0) {
+            return "";
+        } else {
+            let strRules = ruleSet.map(rule => {
+                if (rule.type === 'cssRule') {
+                    return this.serializeCssRule(rule);
+                } else if (rule.type === '@keyframes') {
+                    return this.serializeKeyframeAtRule(rule);
+                } else {
+                    // @meida & @supports
+                    return this.serializeConditionalAtRule(rule);
+                }
+            });
+    
+            return strRules.join('\n') + '\n';
+        }
     }
 
     private serializeCssRule (rule : CSSRule) : string {
@@ -36,9 +40,9 @@ export class CSSRuleSetStringSerializer {
             } else {
                 return this.serializeAnimationNameDeclr(declr);
             }
-        });
+        }).join('');
 
-        return `${strSelectors.join(',')}{${strDeclrs.join(';')}}\n`;
+        return `${strSelectors.join(',')}{${strDeclrs}}`;
     }
 
     private serializeOtherPropDeclr (declr : OtherPropertyDeclaration) {
@@ -69,14 +73,14 @@ export class CSSRuleSetStringSerializer {
             }
         }
 
-        return `animation:${valueList.join(' ')}`;
+        return `animation:${valueList.join(' ')};`;
     }
 
     private serializeKeyframeAtRule (keyframe : KeyframeAtRule) {
-        return `@keyframes ${keyframe.name} ${keyframe.decalration}\n`;
+        return `@keyframes ${keyframe.name}${keyframe.decalration}`;
     }
 
     private serializeConditionalAtRule (atRule : ConditionalAtRule) {
-        return `${atRule.type} ${atRule.conditions} { ${this.serialize(atRule.rules)} }`;
+        return `${atRule.type} ${atRule.conditions}{\n${this.serialize(atRule.rules)}}`;
     }
 }

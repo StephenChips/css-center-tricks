@@ -1,6 +1,6 @@
 module.exports = {
     transform: {
-      "^.+\\.jsx?$": "babel-jest"
+      "^.+\\.(t|j)sx?$": "babel-jest",
     },
     moduleNameMapper: {
       '^.+\\.(css|less)$': '<rootDir>/testutils/css-stub.js'

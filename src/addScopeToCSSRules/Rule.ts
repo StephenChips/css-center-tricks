@@ -40,7 +40,7 @@ export type AnimationNameDeclaration = {
 export type AnimationDeclaration = {
     type: 'animation',
     property : 'animation',
-    value: AnimationValue;
+    value: AnimationValue[];
 };
 
 export type Declaration = AnimationDeclaration | AnimationNameDeclaration | OtherPropertyDeclaration;
@@ -92,10 +92,10 @@ export type KeyframeAtRule = {
 };
 
 /**
- * This type stands for the '@media' and '@support' At-Rules.
+ * This type stands for the '@media' and '@supports' At-Rules.
  */
 export type ConditionalAtRule = {
-    type: '@media' | '@support',
+    type: '@media' | '@supports',
     conditions: string,
     rules: Rule[]
 };

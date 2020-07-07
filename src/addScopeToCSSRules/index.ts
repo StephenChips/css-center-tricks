@@ -1,4 +1,4 @@
-import { CSSRuleSetParser } from './CSSRuleSetParser.js';
+import { CSSRuleSetParser } from './CSSRuleSetParser';
 import { CSSRuleSetStringSerializer } from './CSSRuleSetStringSerializer';
 import { Rule } from './Rule';
 
@@ -41,7 +41,7 @@ export function addScopeToCssRules (scope : string, css : string) {
             } else if (rule.type === '@keyframes') {
                 rule.name = addScopeToAnimationName(scope, rule.name);
             } else {
-                // '@media' && '@support'
+                // '@media' && '@supports'
                 addScope(scope, rule.rules);
             }
         }
