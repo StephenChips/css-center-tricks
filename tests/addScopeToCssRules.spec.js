@@ -50,7 +50,7 @@ describe('addScopeToCssRules.js', () => {
     });
 
     describe('Property Animation, Animation-Name as well as @keyframes', () => {
-        it('All animation names will be updated, even those are not defined.', () => {
+        it('All animation names will be updated, even those that are not defined.', () => {
             let scoped = addScopeToCssRules('dummy', `
 @keyframes fakeout {
     from {
