@@ -1,7 +1,32 @@
 import { hasOwnProperty } from "../utils";
-import { Rule, Declaration, CSSRule, AnimationValue, AnimationProperty } from "./Rule";
+import { Rule, Declaration, CSSRule, AnimationDef as AnimationDef, AnimationProperty } from "./Rule";
 
 type Nullable<T extends object> = { [prop in keyof T]: T[prop] | null };
+
+const MAP_KEYWORD_TO_PROP = new Map<string, AnimationProperty>([
+    [ 'ease', 'timing-function' ],
+    [ 'ease-in', 'timing-function' ],
+    [ 'ease-out', 'timing-function' ],
+    [ 'ease-in-out', 'timing-function' ],
+    [ 'linear', 'timing-function' ],
+    [ 'step-start', 'timing-function' ],
+    [ 'step-end', 'timing-function' ],
+    [ 'initial', 'timing-function' ],
+    [ 'unset', 'timing-function' ],
+    [ 'inherit', 'timing-function' ],
+    [ 'normal', 'direction' ],
+    [ 'reverse', 'direction' ],
+    [ 'alternate', 'direction' ],
+    [ 'alternate-reverse', 'direction' ],
+    [ 'none', 'fill-mode' ],
+    [ 'forwards', 'fill-mode' ],
+    [ 'backwards', 'fill-mode' ],
+    [ 'both', 'fill-mode' ],
+    [ 'running', 'play-state' ],
+    [ 'paused', 'play-state'],
+    [ 'infinite', 'iteration-count' ]
+]);
+
 
 /**
  * This parser should only be used for the function addScopeToCssRule.
@@ -12,7 +37,7 @@ export class CSSRuleSetParser {
     private cursor : number = 0;
     private result : Rule[];
     private braceParser : NestedBraceParser = new NestedBraceParser();
-    private animationValueParser : AnimationValueParser = new AnimationValueParser();
+    private animationValueParser : AnimationDefsParser = new AnimationDefsParser();
 
     constructor (rules : string) {
         this.rules = rules;
@@ -27,8 +52,8 @@ export class CSSRuleSetParser {
         
         // We make an assumption that the input CSS rules are symatically correct, which
         // means it can be parsed correctly by any CSS parser. Beware that there may be
-        // some sematic errors in the input, e.g. unknown properties, invalid values, but
-        // they will not make our parser throws error.
+        // some sematic errors in the input, e.g. unknown properties, invalid values.
+        // They will not make our parser throws error.
 
         this.result = this.parseRuleSet();
         this.hasParsed = true;
@@ -193,7 +218,7 @@ export class CSSRuleSetParser {
                     type: 'animation-name',
                     property: 'animation-name',
                     value: value.trim()
-                })
+                });
             } else {
                 declarations.push({
                     type: 'other',
@@ -301,45 +326,20 @@ class NestedBraceParser {
     }
 }
 
-class AnimationValueParser {
-    private listOfValueList : string[][];
-
-    private mapTypeOfKeyword = new Map<string, AnimationProperty>([
-        [ 'ease', 'timing-function' ],
-        [ 'ease-in', 'timing-function' ],
-        [ 'ease-out', 'timing-function' ],
-        [ 'ease-in-out', 'timing-function' ],
-        [ 'linear', 'timing-function' ],
-        [ 'step-start', 'timing-function' ],
-        [ 'step-end', 'timing-function' ],
-        [ 'initial', 'timing-function' ],
-        [ 'unset', 'timing-function' ],
-        [ 'inherit', 'timing-function' ],
-        [ 'normal', 'direction' ],
-        [ 'reverse', 'direction' ],
-        [ 'alternate', 'direction' ],
-        [ 'alternate-reverse', 'direction' ],
-        [ 'none', 'fill-mode' ],
-        [ 'forwards', 'fill-mode' ],
-        [ 'backwards', 'fill-mode' ],
-        [ 'both', 'fill-mode' ],
-        [ 'running', 'play-state' ],
-        [ 'pause', 'play-state'],
-        [ 'infinite', 'iteration-count' ]
-    ]);
-
-    public parse (str : string) : AnimationValue[] {
+class AnimationDefsParser {
+    public parse (str : string) : AnimationDef[] {
         // We can promise that after the process, all
         // animation values are retained, so none of
         // them could be null or undefined.
-        return this.splitValueLists(str).map(this.createAnimationValueFromList.bind(this));
+        const listDefs = this.parseDefsToList(str);
+        return listDefs.map(this.createDefFromList.bind(this));
     }
 
     
-    private createAnimationValueFromList (listOfValue : string[]) : AnimationValue {
-        let result : Nullable<AnimationValue>;
+    private createDefFromList (valueList : string[]) : AnimationDef {
+        let result : Nullable<AnimationDef>;
 
-        if (this.listOfValueList.length === 8) {
+        if (valueList.length === 8) {
             result = {
                 'name': null,
                 'duration': null,
@@ -351,14 +351,14 @@ class AnimationValueParser {
                 'fill-mode': null,
                 'play-state': null
             };
-        } else if (this.listOfValueList.length === 4) {
+        } else if (valueList.length === 4) {
             result = {
                 'duration': null,
                 'timing-function': null,
                 'delay': null,
                 'name': null
             };
-        } else if (this.listOfValueList.length === 2) {
+        } else if (valueList.length === 2) {
             result = {
                 'duration': null,
                 'name': null
@@ -367,45 +367,36 @@ class AnimationValueParser {
             throw new Error('Illegal animation value');
         }
     
-        for (let value of listOfValue) {
+        for (let value of valueList) {
+            // We have a value, but we don't know which property we can apply it to.
+            // So we run following function to get the answer.
             const proplist = this.getApplicableProperties(value);
-            const LEN = proplist.length;
+            let noSuitableProp = true;
+
+            // The `proplist` has all applicable properties. But some of them may not
+            // required by the AnimationDef, so we have to check them one by one.
     
-            for (let i = 0; i < LEN; i++) {
+            for (let i = 0; i < proplist.length; i++) {
                 let PROP = proplist[i];
                 if (hasOwnProperty(result, PROP)) {
-                    // We need this property
-                    if (result[PROP] !== null) {
-                        // If it is not null, it means we have found another value
-                        // for this property before.
-                        continue;
-                    } else {
-                        // We haven't found value for this property before.
-                        // Now we found one.
+                    // We need this property and its value hasn't been discovered yet.
+                    if (result[PROP] === null) {
                         result[PROP] = value;
+                        noSuitableProp = false;
                         break;
-                    }
-                } else {
-                    // We don't need this property
-                    if (i < LEN - 1) {
-                        // Well, there are other properties that have
-                        // not try yet in the `proplist`, and maybe
-                        // we need some of them.
-                        continue;
-                    } else {
-                        // We try all applicable properties but none
-                        // of them are required. So we have to throw
-                        // an error.
-                        throw new Error('Illegal animation value');
                     }
                 }
             }
+
+            if (noSuitableProp) {
+                throw new Error('Illegal animation value');
+            }
         }
 
-        // We know that all values are string now, so the "result" can be
-        // regarded as "non-nullable" AnimationValue type. But typescript
-        // compiler doesn't knows that, so we have to proceed a type cast.
-        return result as AnimationValue;
+        // At the end, all property should be found, none of them should be null.
+        // But typescript compiler doesn't knows that, so we have to type-cast
+        // the result. 
+        return result as AnimationDef;
     }
 
     /**
@@ -453,7 +444,7 @@ class AnimationValueParser {
         // If not, check if it is a special keyword for certain `animation-*` property.
         // We suppose the value is valid, so if it isn't a <time>, nor a <number>, nor a
         // <timing-function>, it can only be a <custom-ident>.
-        let type : AnimationProperty = this.mapTypeOfKeyword.get(value) as AnimationProperty;
+        let type : AnimationProperty = MAP_KEYWORD_TO_PROP.get(value) as AnimationProperty;
         if (typeof type === 'string') {
             if (this.isForbiddenWord(value)) {
                 // animation-timing-function: unset;
@@ -490,17 +481,22 @@ class AnimationValueParser {
         return false;
     }
 
-    private splitValueLists (str : string) : string[][] {
+    private parseDefsToList (str : string) : string[][] {
         let cursor = 0;
         let result = [];
 
         cursor = skipWhitespacesAndBreaks(str, cursor);
-        while (cursor < str.length && str[cursor] !== ';') {
+        while (cursor < str.length) {
             let list = [];
-            while (cursor < str.length && str[cursor] !== ';' && str[cursor] !== ',') {
-                let parsedResult = parseSingleCSSValue(str, cursor, new Set([ ',', ';' ]));
-                list.push(parsedResult.result);
+            while (cursor < str.length && str[cursor] !== ',') {
+                let parsedResult = parseSingleCSSValue(str, cursor, new Set([ ',' ]));
                 cursor = skipWhitespacesAndBreaks(str, parsedResult.cursor);
+                list.push(parsedResult.result);
+            }
+
+            if (cursor < str.length) {
+                cursor++; // skip the colon or semicolon;
+                cursor = skipWhitespacesAndBreaks(str, cursor);
             }
             result.push(list);
         }
@@ -539,9 +535,9 @@ function parseSingleCSSValue (str : string, cursor : number, followSet : Set<str
             cursor += 2;
         } else if (isEndsWithQuote && currentChar === quote) {
             break;
-        } else if (!isEndsWithQuote && followSet.has(currentChar)) {
+        } else if (!isEndsWithQuote && (isWhitespaceOrBreak(currentChar) || followSet.has(currentChar))) {
             break;
-        }else {
+        } else {
             cursor++;
         }
     }

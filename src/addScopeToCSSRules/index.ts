@@ -33,7 +33,9 @@ export function addScopeToCssRules (scope : string, css : string) {
                 // and 'animation-name' declarations, add scope to thme.
                 for (let declr of rule.decalrations) {
                     if (declr.type === 'animation') {
-                        declr.value.name = addScopeToAnimationName(scope, declr.value.name);
+                        for (let animationValue of declr.value) {
+                            animationValue.name = addScopeToAnimationName(scope, animationValue.name);
+                        }
                     } else if (declr.type === 'animation-name') {
                         declr.value = addScopeToAnimationName(scope, declr.value);
                     }

@@ -40,24 +40,24 @@ export type AnimationNameDeclaration = {
 export type AnimationDeclaration = {
     type: 'animation',
     property : 'animation',
-    value: AnimationValue[];
+    value: AnimationDef[];
 };
 
 export type Declaration = AnimationDeclaration | AnimationNameDeclaration | OtherPropertyDeclaration;
 
-type TwoValuesAnimationValue = {
+type TwoValuesAnimationDef = {
     name: string,
     duration: string;
 };
 
-type FourValuesAnimationValue = {
+type FourValuesAnimationDef = {
     name: string,
     duration: string,
     'timing-function': string,
     delay: string
 };
 
-type EightValuesAnimationValue = {
+type EightValuesAnimationDef = {
     'name': string,
     'duration': string,
     'timing-function': string,
@@ -69,7 +69,7 @@ type EightValuesAnimationValue = {
     'play-state': string
 }
 
-export type AnimationValue = TwoValuesAnimationValue | FourValuesAnimationValue | EightValuesAnimationValue;
+export type AnimationDef = TwoValuesAnimationDef | FourValuesAnimationDef | EightValuesAnimationDef;
 
 /**
  * This type stands for a common CSS style rule. The rule that declares CSS

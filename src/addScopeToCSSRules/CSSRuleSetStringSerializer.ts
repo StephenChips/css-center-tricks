@@ -54,6 +54,7 @@ export class CSSRuleSetStringSerializer {
     }
 
     private serializeAnimationDeclr (declr : AnimationDeclaration) {
+        // Properties has precedence.
         let propList : AnimationProperty[] = [
             'duration',
             'timing-function',
@@ -65,15 +66,29 @@ export class CSSRuleSetStringSerializer {
             'name'
         ];
 
-        let valueList = [];
+        let result = 'animation:';
 
-        for (var prop of propList) {
-            if (hasOwnProperty(declr.value, prop)) {
-                valueList.push(declr.value[prop]);
+        for (let i = 0; i < declr.value.length; i++) {
+            let def = declr.value[i];
+            for (let j = 0; j < propList.length; j++) {
+                let prop = propList[j];
+                if (hasOwnProperty(def, prop)) {
+                    result += def[prop];
+
+                    if (j < propList.length - 1) {
+                        result += ' ';
+                    }
+                }
+            }
+
+            if (i < declr.value.length - 1) {
+                result += ',';
             }
         }
 
-        return `animation:${valueList.join(' ')};`;
+        result += ';';
+
+        return result;
     }
 
     private serializeKeyframeAtRule (keyframe : KeyframeAtRule) {

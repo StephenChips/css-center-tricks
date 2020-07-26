@@ -107,7 +107,7 @@ p {
         });
     
         it('The number of values is either 2, 4 or 8', () => {
-            let scoped = addScopeToCssRules(
+            let scoped = addScopeToCssRules('dummy',
 `div {
     animation:
         1s fadein,
@@ -116,7 +116,27 @@ p {
 }`
             );
 
-            expect(scoped).toBe('div{animation:is fadein,1s linear 1s slidein,3s ease-in 1s 2 reverse both paused hue;');
+            expect(scoped).toBe('[data-dummy] div{animation:1s fadein-dummy,1s linear 1s slidein-dummy,3s ease-in 1s 2 reverse both paused hue-dummy;}\n');
+        });
+
+
+        it('Other number of values are invalid', () => {
+            expect(() => {
+                addScopeToCssRules('dummy',
+                    `div {
+                        animation: 1s fadein 1s 1s;
+                    }`
+                );
+            }).toThrow();
+        });
+
+        it('Having multiple <custom-ident> is invalid', () => {
+            expect(() => {
+                addScopeToCssRules(`dummy`, `
+                div {
+                    anmiation: 1s lin 1s sin,
+                }`)
+            })
         });
     });
 
