@@ -12,7 +12,7 @@ every animation-name, animation properties' value, and update
 every keyframes' name.
 
  */
-export function addScopeToCssRules (scope : string, css : string) {
+export default function addScopeToCssRules (scope : string, css : string) {
     let parser = new CSSRuleSetParser(css);
     let serializer = new CSSRuleSetStringSerializer();
     let ruleSet : Rule[] = parser.parse();

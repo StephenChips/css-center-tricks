@@ -1,37 +1,25 @@
 import '../assets/CodePane.css';
 import split from 'split.js';
+import addScopeToCSSRules from './addScopeToCSSRules';
 
-// This is the key that we set on a style tag. It is used to identify
-// the example which it relates to. 
+// This is the key that we set on a style tag. It identifies
+// which example it relates to. 
 const STYLE_EXAMPLE_KEYNAME = 'data-codepane-example-key';
-
-// This is the key that we set on an example's element. It is the
-// unique ID of the example in a CodePane.
-const EXAMPLE_KEYNAME = 'data-key';
 
 class CodePane {
     /**
      * 
-     * @param {Element} el HTML Element of CodePane
+     * @param {Element} root HTML Element of CodePane
      */
-    constructor (el) {
+    constructor (root) {
         // There are two states for a CodePane, which are the 'showing-code' state and the 'showing-result' state.
         // When it's showing the current example's HTML & CSS snippets,  it's in the 'showing-code' state.
         // When it's showing the current example's result HTML, it's in the 'showing-result' state.
         this._state = 'showing-code';
-        this._el = el;
+        this._root = root;
         this._currentExampleKey = null;
 
-        if (this._el.children.length > 0) {
-            let firstChild = this._el.children[0];
-            let keyOfFirstExample = firstChild.getAttribute(EXAMPLE_KEYNAME);
-
-            // Initialize split.js for all examples.
-            this._initSplitViewForAllExamples();
-
-            // Calling the "showExample(...)" will ends the "creating" state.
-            this.showExample(keyOfFirstExample);
-        }
+        this._cleanUpRoot();
     }
 
     showExample (exampleKey) {
@@ -39,31 +27,30 @@ class CodePane {
             return;
         }
 
-        let newActivedExample = this._findExampleByKey(exampleKey);
+        let newActivedExample = this._findExampleByKey(this._perfixedKey(exampleKey));
+        console.log(this._perfixedKey(exampleKey))
         if (newActivedExample === null) {
             throw new Error('The pane does not exists');
         }
 
-        // If the codepane is under construction, or if there are 
-        // no examples in an codepane, `this._currentExampleKey` will be null.
+        // If the codepane is empty, `this._currentExampleKey` will be null.
         if (this._currentExampleKey !== null) {
             let oldActivedExample = this._findExampleByKey(this._currentExampleKey);
             oldActivedExample.classList.remove('actived');
         }
 
         newActivedExample.classList.add('actived');
-        this._currentExampleKey = newActivedExample.getAttribute(EXAMPLE_KEYNAME);
+        this._currentExampleKey = this._perfixedKey(exampleKey);
 
-        const exampleState = this._getExampleState(newActivedExample);
-        if (exampleState === 'showing-code' && this._state === 'showing-result') {
+        if (this._state = 'showing-result') {
             this.showResult();
-        } else if (exampleState === 'showing-result' && this._state === 'showing-code') {
+        } else if (this._state === 'showing-code') {
             this.showCode();
         }
     }
 
     showCode () {
-        if (this._el.children.length > 0) {
+        if (this._root.children.length > 0) {
             // this._currentExampleKey points to the example that is currently being shown.
             // And because of that, it will not be null or undefined, except there are no
             // examples in the CodePane. In that situation, it must be null.
@@ -79,7 +66,7 @@ class CodePane {
     }
 
     showResult () {
-        if (this._el.children.length > 0) {
+        if (this._root.children.length > 0) {
             // this._currentExampleKey points to the example that is currently being shown.
             // And because of that, it will not be null or undefined, except there are no
             // examples in the CodePane. In that situation, it must be null.
@@ -100,13 +87,15 @@ class CodePane {
      * @param {{ html: string, css: string, htmlSnippet: string, cssSnippet: string }}} param1 object specifies an example's content
      */
     addExample (key, { html, css, htmlSnippet, cssSnippet }) {
-        if (this._findExampleByKey(key) !== null) {
+        if (this._findExampleByKey(this._perfixedKey(key)) !== null) {
             throw new Error('Your example\'s key is same with an existed example.');
         }
 
+        const perfixedKey = this._perfixedKey(key);
+
         // Firstm we create DOM structure through arguments.
         const $example = this._parseHTML(
-`<div class="codepane__example" data-key="${key}">
+`<div class="codepane__example" data-${perfixedKey}>
     <div class="codepane__code">
         <div class="codepane__html">
             <pre><code>${htmlSnippet}</code></pre>
@@ -133,13 +122,23 @@ class CodePane {
         // Then, we insert <style> tag with scoped style rules to the <head> element.
         const styleTag = document.createElement('style');
         styleTag.setAttribute(STYLE_EXAMPLE_KEYNAME, key);
-        styleTag.textContent = this._addScopeToCssRules(css);
+        styleTag.textContent = addScopeToCSSRules(perfixedKey, css)
         
-        this._el.appendChild($example);
+        this._root.appendChild($example);
         document.head.appendChild(styleTag);
 
         // Finally, initalize split.js for this new example.
         this._initSplitViewForExample($example);
+
+        if (this._root.children.length === 1) {
+            this._currentExampleKey = perfixedKey;
+        }
+    }
+
+    _cleanUpRoot () {
+        while (this._root.childNodes.length > 0) {
+            this._root.removeChild(this._root.firstChild);
+        }
     }
 
     _getExampleState (example) {
@@ -151,26 +150,14 @@ class CodePane {
         }
     }
 
-    _addScopeToCssRules (css) {
-        return css;
+    _perfixedKey (key) {
+        return `codepane-example-${key}`
     }
 
     _parseHTML (str) {
         let wrapper = document.createElement('div');
         wrapper.innerHTML = str;
         return wrapper.firstElementChild;
-    }
-
-    _createScopedCSSObject (key, styleObject) {
-        // We assume all rules in the style object are not scoped.
-        let scopedCSSRules = Object.create(null);
-        
-        for (let selector in styleObject) {
-            let scopedSelector = `.codepane__example[data-key="${key}"] ${selector}`;
-            scopedCSSRules[scopedSelector] = Object.assign({}, styleObject[selector])
-        }
-        
-        return scopedCSSRules;
     }
 
     _convertCSSObjectToString (styleObject) {
@@ -191,8 +178,8 @@ class CodePane {
         return result;
     }
 
-    _findExampleByKey (key) {
-        return this._el.querySelector(`.codepane__example[data-key="${key}"]`);
+    _findExampleByKey (perfixedKey) {
+        return this._root.querySelector(`[data-${perfixedKey}]`);
     }
 
     _initSplitViewForExample (example) {
@@ -216,15 +203,8 @@ class CodePane {
         }
     }
 
-    _initSplitViewForAllExamples () {
-        let allExamples = this._el.querySelectorAll('.codepane__example');
-        for (let example of allExamples) {
-            this._initSplitViewForExample(example);
-        }
-    }
-
     get el () {
-        return this._el;
+        return this._root;
     }
 }
 

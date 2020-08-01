@@ -7,7 +7,7 @@ exports[`Test addExample(...) render HTML & CSS snippets correctly when we call 
 >
   <div
     class="codepane__example actived"
-    data-key="dummy"
+    data-codepane-example-dummy=""
   >
     
     
@@ -98,7 +98,7 @@ exports[`Test addExample(...) render result correctly when we call "showResult()
 >
   <div
     class="codepane__example actived"
-    data-key="dummy"
+    data-codepane-example-dummy=""
   >
     
     
