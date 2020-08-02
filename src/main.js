@@ -1,7 +1,11 @@
+import 'regenerator-runtime/runtime';
+
 import '../assets/index.css';
 import '../assets/examples.css'
 import CodePane from './CodePane';
 import Menu from './Menu';
+
+import 'prismjs/themes/prism.css';
 
 const navMenuDataForPage = {
     'horizontal': [
@@ -13,20 +17,37 @@ const navMenuDataForPage = {
     'vertical': [
         { key: 'v-flexbox', data: 'flexbox' },
         { key: 'v-position-absolute', data: 'position absolute' },
-        { key: 'v-vertical-align', data: 'vertical-align' }
+        { key: 'v-vertical-align', data: 'vertical align' }
     ],
     'horizontal-vertical': [
-        { key: 'h&v-flexbox', data: 'flexbox' },
-        { key: 'h&v-position-absolute', data: 'vertical-align' }
+        { key: 'hv-flexbox', data: 'flexbox' },
+        { key: 'hv-position-absolute', data: 'position absolute' }
     ]
 };
 
 let $sidemenu, $navmenu, $btnShowCode, $btnShowResult, $codePane;
 
-initElements();
-initEventsForElements();
-addExamplesToCodePane();
-setPage('horizontal');
+(async () => {
+    initElements();
+    initEventsForElements();
+    await addExamplesToCodePane();
+    setPage('horizontal');
+    console.log('App has loaded!');
+})();
+
+async function addExamplesToCodePane () {
+    let request = await fetch('/api/css-center-tricks/examples');
+    let examples = await request.json();
+
+    for (let example of examples) {
+        $codePane.addExample(example.key, {
+            html: example.html,
+            css: example.css,
+            htmlSnippet: example.htmlSnippet,
+            cssSnippet: example.cssSnippet
+        });
+    }
+}
 
 function initElements () {
     $sidemenu = new Menu(document.getElementById('sidemenu'), {
@@ -57,176 +78,9 @@ function initElements () {
 function setPage (key) {
     $sidemenu.setActivedItem(key, false);
     $navmenu.setItems(navMenuDataForPage[key]);
-    const keyOfActivedExample = navMenuDataForPage[key][0].key;
-    $navmenu.setActivedItem(keyOfActivedExample);
-    $codePane.showExample(keyOfActivedExample);
-}
-
-function addExamplesToCodePane () {
-    $codePane.addExample('h-flexbox', {
-        html: `<div class="wrapper">
-            <div class="centered">I'm horizontal centered!</div>
-        </div>`,
-    
-        css: {
-            '.wrapper': {
-                'display': 'flex',
-                'justify-content': 'center'
-            }
-        }
-    });
-    
-    $codePane.addExample('h-auto-margin', {
-        html: `<div class="wrapper">
-            <div class="centered">I'm horizontal centered!</div>
-        </div>`,
-    
-        css: {
-            '.wrapper': {
-                'display': 'block',
-            },
-    
-            '.centered': {
-                'display': 'block',
-                'width': '200px',
-                'margin': '0 auto'
-            }
-        }
-    });
-    
-    $codePane.addExample('h-position-absolute', {
-        html: `<div class="wrapper">
-            <div class="centered">I'm horizontal centered!</div>
-        </div>`,
-    
-        css: {
-            '.wrapper': {
-                'display': 'block',
-                'position':　'relative'
-            },
-    
-            '.centered': {
-                'position': 'absolute',
-                'width': '200px',
-                'left': '0',
-                'right': '0',
-                'margin': '0 auto'
-            }
-        }
-    });
-    
-    $codePane.addExample('h-text-align', {
-        html: `<div class="wrapper">
-            <div class="centered">I'm horizontal centered!</div>
-        </div>`,
-    
-        css: {
-            '.wrapper': {
-                'display': 'block',
-                'text-align': 'center',
-            },
-    
-            '.centered': {
-                'display': 'inline-block'
-            }
-        }
-    });
-
-    $codePane.addExample('v-flexbox', {
-        html: `<div class="wrapper">
-            <div class="centered">I'm vertical centered!</div>
-        </div>`,
-    
-        css: {
-            '.wrapper': {
-                'display': 'flex',
-                'align-items': 'center',
-                'height': '100%'
-            }
-        }
-    });
-
-    $codePane.addExample('v-position-absolute', {
-        html: `<div class="wrapper">
-            <div class="centered">I'm vertical centered!</div>
-        </div>`,
-
-        css: {
-            '.wrapper': {
-                'position': 'relative',
-                'height': '100%'
-            },
-            '.centered': {
-                'position': 'absolute',
-                'height': '200px',
-                'top': '0',
-                'bottom': '0',
-                'margin-top': 'auto',
-                'margin-bottom': 'auto'
-            }
-        }
-    });
-
-    $codePane.addExample('v-vertical-align', {
-        html: `<div class="wrapper">
-            <div class="centered">I'm vertical centered!</div>
-        </div>`,
-
-        css: {
-            '.wrapper': {
-                'height': '100%',
-            },
-            '.wrapper::after': {
-                'display': 'inline-block',
-                'content': '\'\'',
-                'width': '0',
-                'height': '100%',
-                'vertical-align': 'middle'
-            },
-            '.centered': {
-                'display': 'inline-block',
-            }
-        }
-    });
-
-    $codePane.addExample('h&v-flexbox', {
-        html: `<div class="wrapper">
-            <div class="centered">I'm vertical centered!</div>
-        </div>`,
-
-        css: {
-            '.wrapper': {
-                'height': '100%',
-                'display': 'flex',
-                'justify-content': 'center',
-                'align-items': 'center'
-            }
-        }
-    });
-
-    $codePane.addExample('h&v-position-absolute', {
-        html: `<div class="wrapper">
-            <div class="centered">I'm vertical centered!</div>
-        </div>`,
-
-        
-        css: {
-            '.wrapper': {
-                'height': '100%',
-                'position': 'relative'
-            },
-            '.centered': {
-                'position': 'absolute',
-                'top': '0',
-                'bottom': '0',
-                'left': '0',
-                'right': '0',
-                'height':'200px',
-                'width': '200px',
-                'margin': 'auto'
-            }
-        }
-    })
+    const navMenuData = navMenuDataForPage[key];
+    $navmenu.setActivedItem(navMenuData[0].key);
+    $codePane.showExample(navMenuData[0].key);
 }
 
 function initEventsForElements () {

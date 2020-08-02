@@ -1,20 +1,35 @@
 const path = require('path');
-const { module, plugins } = require('./webpack.common');
-
+const webpackCommon = require('./webpack.common');
+const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 module.exports = {
     mode: 'production',
     entry: './src/main.js',
     output: {
-        path: path.resolve(__dirname, './prod/dist'),
-        filename: 'main.js',
+        path: path.resolve(__dirname, './dist'),
+        filename: 'public/main.[hash].js',
         publicPath: '/css-center-tricks'
     },
     module: {
       rules: [
-          ...module.rules
+        {
+          test: /\.css$/,
+          use: [ MiniCssExtractPlugin.loader, 'css-loader' ]
+        },
+          ...webpackCommon.module.rules
       ],
     },
     plugins: [
-      ...plugins
-    ]
+      ...webpackCommon.plugins,
+      new MiniCssExtractPlugin({
+        // Options similar to the same options in webpackOptions.output
+        // both options are optional
+        filename: 'public/[name].[hash].css',
+        chunkFilename: '[id].css',
+      }),
+      //new BundleAnalyzerPlugin()
+    ],
+    resolve: {
+      extensions: webpackCommon.resolve.extensions
+    }
 };

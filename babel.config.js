@@ -4,7 +4,16 @@ module.exports = {
         '@babel/preset-typescript',
         [
             '@babel/preset-env',
-            { targets: {node: 'current'} }
-        ],
+            {
+                modules: false,
+                useBuiltIns: 'entry',
+                corejs: 3
+            }
+        ]
     ],
+    plugins: [
+        "@babel/plugin-syntax-dynamic-import",
+        "@babel/proposal-class-properties",
+        "@babel/proposal-object-rest-spread"
+    ]
 };

@@ -1,5 +1,5 @@
 const path = require('path');
-const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
+const webpackCommon = require('./webpack.common');
 
 module.exports = {
     mode: 'development',
@@ -9,12 +9,26 @@ module.exports = {
       filename: 'main.js'
     },
     module: {
-      rules: [
-          ...module.rules
+      rules: [  
+        {
+            test: /\.css$/i,
+            use: ['style-loader', 'css-loader'],
+        },
+        ...webpackCommon.module.rules
       ],
     },
     plugins: [
-      ...plugins,
-      new BundleAnalyzerPlugin()
-    ]
+      ...webpackCommon.plugins,
+    ],
+    devServer: {
+      contentBase: path.join(__dirname, 'dist'),
+      compress: true,
+      port: 9000,
+      proxy: {
+        '/api': 'http://localhost:8080'
+      }
+    },
+    resolve: {
+      extensions: webpackCommon.resolve.extensions
+    }
 };

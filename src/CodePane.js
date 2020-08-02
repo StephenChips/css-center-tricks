@@ -1,6 +1,6 @@
 import '../assets/CodePane.css';
 import split from 'split.js';
-import addScopeToCSSRules from './addScopeToCSSRules';
+import addScopeToCSSRules from './addScopeToCSSRules/index.ts';
 
 // This is the key that we set on a style tag. It identifies
 // which example it relates to. 
@@ -22,35 +22,17 @@ class CodePane {
         this._cleanUpRoot();
     }
 
-    showExample (exampleKey) {
-        if (exampleKey === this._currentExampleKey) {
+    showExample (key) {
+        let perfixed = this._perfixedKey(key);
+        if (perfixed === this._currentExampleKey) {
             return;
         }
 
-        let newActivedExample = this._findExampleByKey(this._perfixedKey(exampleKey));
-        console.log(this._perfixedKey(exampleKey))
-        if (newActivedExample === null) {
-            throw new Error('The pane does not exists');
-        }
-
-        // If the codepane is empty, `this._currentExampleKey` will be null.
-        if (this._currentExampleKey !== null) {
-            let oldActivedExample = this._findExampleByKey(this._currentExampleKey);
-            oldActivedExample.classList.remove('actived');
-        }
-
-        newActivedExample.classList.add('actived');
-        this._currentExampleKey = this._perfixedKey(exampleKey);
-
-        if (this._state = 'showing-result') {
-            this.showResult();
-        } else if (this._state === 'showing-code') {
-            this.showCode();
-        }
+        this._showExample(perfixed);
     }
 
     showCode () {
-        if (this._root.children.length > 0) {
+        if (this._root.childNodes.length > 0) {
             // this._currentExampleKey points to the example that is currently being shown.
             // And because of that, it will not be null or undefined, except there are no
             // examples in the CodePane. In that situation, it must be null.
@@ -60,13 +42,15 @@ class CodePane {
     
             result.classList.remove('actived');
             code.classList.add('actived');
+            
+            
         }
 
         this._state = 'showing-code';
     }
 
     showResult () {
-        if (this._root.children.length > 0) {
+        if (this._root.childNodes.length > 0) {
             // this._currentExampleKey points to the example that is currently being shown.
             // And because of that, it will not be null or undefined, except there are no
             // examples in the CodePane. In that situation, it must be null.
@@ -110,15 +94,6 @@ class CodePane {
 </div>`
         );
 
-        // Then, we initialize the CodePane's states. The code snippets is show first by default.
-        const $result = $example.querySelector('.codepane__result');
-        const $code = $example.querySelector('.codepane__code');
-        if (this._state === 'showing-code') {
-            $code.classList.add('actived');
-        } else if (this._state === 'showing-result') {
-            $result.classList.add('actived');
-        }
-
         // Then, we insert <style> tag with scoped style rules to the <head> element.
         const styleTag = document.createElement('style');
         styleTag.setAttribute(STYLE_EXAMPLE_KEYNAME, key);
@@ -127,11 +102,37 @@ class CodePane {
         this._root.appendChild($example);
         document.head.appendChild(styleTag);
 
+        
+        
+
         // Finally, initalize split.js for this new example.
         this._initSplitViewForExample($example);
 
-        if (this._root.children.length === 1) {
-            this._currentExampleKey = perfixedKey;
+        if (this._root.childNodes.length === 1) {
+            this._showExample(perfixedKey);
+        }
+    }
+
+    _showExample (perfixedKey) {
+        let newActivedExample = this._findExampleByKey(perfixedKey);
+        if (newActivedExample === null) {
+            throw new Error('The pane does not exists');
+        }
+
+        // If the codepane is empty, `this._currentExampleKey` will be null.
+        if (this._currentExampleKey !== null) {
+            let oldActivedExample = this._findExampleByKey(this._currentExampleKey);
+            oldActivedExample.classList.remove('actived');
+        }
+
+        newActivedExample.classList.add('actived');
+        this._currentExampleKey = perfixedKey;
+
+        
+        if (this._state === 'showing-result') {
+            this.showResult();
+        } else if (this._state === 'showing-code') {
+            this.showCode();
         }
     }
 
@@ -151,31 +152,13 @@ class CodePane {
     }
 
     _perfixedKey (key) {
-        return `codepane-example-${key}`
+        return `codepane-example-${key.replace(/[A-Z]/g, match => '-' + match.toLowerCase())}`
     }
 
     _parseHTML (str) {
         let wrapper = document.createElement('div');
         wrapper.innerHTML = str;
         return wrapper.firstElementChild;
-    }
-
-    _convertCSSObjectToString (styleObject) {
-        let result = '';
-
-        for (let selector in styleObject) {
-            let styleRules = styleObject[selector];
-            let strRules  = '';
-
-            for (let property in styleRules) {
-                let valueOfProperty = styleRules[property];
-                strRules += `${property}: ${valueOfProperty};`;
-            }
-
-            result += `${selector} { ${strRules} }`;
-        }
-
-        return result;
     }
 
     _findExampleByKey (perfixedKey) {
