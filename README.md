@@ -8,4 +8,4 @@ You can see the example code and the result at the same time!
 # Releasing Notes
 Version 0.2.0 has been released! Now the website is able to load faster than the previous versions.
 
-If you are insterested in this project, feel free to create an issues or a pull request to me.
+If you are insterested in this project, feel free to create issues or pull requests to me.
