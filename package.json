@@ -19,7 +19,7 @@
     "escape-html": "^1.0.3",
     "events": "^3.1.0",
     "jest": "^26.0.1",
-    "prismjs": "^1.20.0",
+    "prismjs": "^1.21.0",
     "split.js": "^1.5.11"
   },
   "devDependencies": {
